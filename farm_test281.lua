@@ -47,8 +47,8 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,280,0,140)
-Frame.Position = UDim2.new(1,-300,1,160)
+Frame.Size = UDim2.new(0,280,0,160)
+Frame.Position = UDim2.new(1,-300,1,180)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.15
@@ -78,15 +78,27 @@ local function createLabel(text,size,pos,color)
 	return lbl
 end
 
-local AntiAFKLabel = createLabel("Anti AFK aktif",25,8,Color3.fromRGB(255,255,255))
-local AntiLagLabel = createLabel("Anti Lag aktif",22,35,Color3.fromRGB(255,255,255))
-local FPSLabel = createLabel("FPS: ...",22,60,Color3.fromRGB(255,255,255))
-local PingLabel = createLabel("Ping: ...",22,85,Color3.fromRGB(255,255,255))
-local RejoinLabel = createLabel("Rejoin: hazırlanıyor...",22,110,Color3.fromRGB(255,215,0))
+local AntiAFKLabel = createLabel("💤 Anti AFK aktif!",25,8,Color3.fromRGB(255,255,255))
+local AntiLagLabel = createLabel("💨 Anti Lag aktif!",22,35,Color3.fromRGB(255,255,255))
+local FPSLabel = createLabel("⚡ FPS: ...",22,60,Color3.fromRGB(255,255,255))
+local PingLabel = createLabel("📶 Ping: ...",22,85,Color3.fromRGB(255,255,255))
+local RejoinLabel = createLabel("⏳ Rejoin: hazırlanıyor...",22,110,Color3.fromRGB(255,215,0))
+
+local CreditLabel = Instance.new("TextLabel")
+CreditLabel.Parent = Frame
+CreditLabel.Size = UDim2.new(1,-10,0,15)
+CreditLabel.Position = UDim2.new(0,5,1,-20)
+CreditLabel.BackgroundTransparency = 1
+CreditLabel.Text = "by NQHSAN"
+CreditLabel.Font = Enum.Font.SourceSansItalic
+CreditLabel.TextSize = 11
+CreditLabel.TextColor3 = Color3.fromRGB(200,200,200)
+CreditLabel.TextXAlignment = Enum.TextXAlignment.Left
+CreditLabel.ZIndex = 11
 
 -- GUI Animasyon
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-300,1,-160),
+	Position = UDim2.new(1,-300,1,-180),
 }):Play()
 
 -- GUI Sürükleme
@@ -137,17 +149,14 @@ end)
 -- FPS ve Ping göstergesi
 local lastFrame = tick()
 local lagCounter = 0
-local LAG_THRESHOLD = 15
-local LAG_DURATION = 300
-
 RunService.Heartbeat:Connect(function()
 	local dt = tick()-lastFrame
 	lastFrame = tick()
 	local fps = 1/dt
-	FPSLabel.Text = string.format("FPS: %d", math.floor(fps))
+	FPSLabel.Text = string.format("⚡ FPS: %d", math.floor(fps))
 
 	local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
-	PingLabel.Text = string.format("Ping: %d ms", math.floor(ping))
+	PingLabel.Text = string.format("📶 Ping: %d ms", math.floor(ping))
 
 	if fps < LAG_THRESHOLD then
 		lagCounter = lagCounter + dt
@@ -184,10 +193,10 @@ end)
 local Button = Instance.new("TextButton")
 Button.Parent = Frame
 Button.Size = UDim2.new(1,-20,0,25)
-Button.Position = UDim2.new(0,10,0,5)
+Button.Position = UDim2.new(0,10,0,130)
 Button.BackgroundColor3 = Color3.fromRGB(60,60,60)
 Button.TextColor3 = Color3.fromRGB(255,255,0)
-Button.Text = "Yeni Servera Git"
+Button.Text = "🌐 Yeni Servera Git"
 Button.Font = Enum.Font.SourceSansBold
 Button.TextSize = 16
 Button.ZIndex = 11
