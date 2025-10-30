@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + SERVER SWITCH
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -12,16 +12,11 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 7200 -- 2 saat
-local LAG_THRESHOLD = 15 -- FPS
-local LAG_DURATION = 300 -- 5 dakika
-local lagCounter = 0
-local lastFrameTime = tick()
+local REJOIN_INTERVAL = 7200 -- 2 saat (saniye)
 
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
@@ -59,17 +54,21 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 300, 0, 140)
-Frame.Position = UDim2.new(1, -320, 1, -160)
+Frame.Size = UDim2.new(0,270,0,110)
+Frame.Position = UDim2.new(1,-290,1,140)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.15
 Frame.ZIndex = 10
 Frame.ClipsDescendants = true
 Frame.Rotation = 1
 
-local UICorner = Instance.new("UICorner", Frame)
+local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0,12)
-local Stroke = Instance.new("UIStroke", Frame)
+UICorner.Parent = Frame
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = Frame
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,150,50)
 
@@ -78,7 +77,7 @@ Title.Parent = Frame
 Title.Size = UDim2.new(1,0,0,25)
 Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
-Title.Text = "🟢 Anti AFK aktif!"
+Title.Text = "🟢 Anti AFK açık!"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -106,18 +105,6 @@ RejoinLabel.TextSize = 17
 RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
 RejoinLabel.ZIndex = 11
 
-local ServerButton = Instance.new("TextButton")
-ServerButton.Parent = Frame
-ServerButton.Size = UDim2.new(1, -20, 0, 30)
-ServerButton.Position = UDim2.new(0, 10, 0, 90)
-ServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
-ServerButton.TextColor3 = Color3.fromRGB(255,255,255)
-ServerButton.Text = "🌐 Yeni Servera Git"
-ServerButton.Font = Enum.Font.SourceSansBold
-ServerButton.TextSize = 18
-ServerButton.ZIndex = 11
-local BtnCorner = Instance.new("UICorner", ServerButton)
-
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
 Credit.Size = UDim2.new(1,-10,0,15)
@@ -130,13 +117,22 @@ Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Left
 Credit.ZIndex = 11
 
+-- GUI Animasyon
+TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+	Position = UDim2.new(1,-290,1,-140),
+	Rotation = 0
+}):Play()
+
 -- GUI sürüklenebilirlik
-local dragging, dragInput, mousePos, framePos = false, nil, nil, nil
+local dragging = false
+local dragInput, mousePos, framePos
+
 Frame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		mousePos = input.Position
 		framePos = Frame.Position
+
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -144,43 +140,63 @@ Frame.InputBegan:Connect(function(input)
 		end)
 	end
 end)
+
 Frame.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
 		dragInput = input
 	end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then
 		local delta = input.Position - mousePos
-		Frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+		Frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset+delta.X, framePos.Y.Scale, framePos.Y.Offset+delta.Y)
 	end
 end)
 
 -------------------------------------------------------------------
--- 🔁 SERVER SWITCH FUNCTION
+-- 🪣 AUTO RESET (Bag Full)
 -------------------------------------------------------------------
-local function teleportNewServer()
-	local success, servers = pcall(function()
-		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-	end)
-	if success and servers.data then
-		for _, s in pairs(servers.data) do
-			if s.playing < s.maxPlayers and s.id ~= game.JobId then
-				pcall(function()
-					TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, Player)
-				end)
-				return
-			end
-		end
-	end
+local function getCharacter()
+	return Player.Character or Player.CharacterAdded:Wait()
+end
+local function getHRP()
+	return getCharacter():WaitForChild("HumanoidRootPart")
 end
 
-ServerButton.MouseButton1Click:Connect(function()
-	teleportNewServer()
+local start_position = getHRP().CFrame
+local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
+
+CoinCollected.OnClientEvent:Connect(function(_,current,max)
+	if current == max and not resetting and autoResetEnabled then
+		resetting = true
+		bag_full = true
+		local hrp = getHRP()
+		if start_position then
+			local tween = TweenService:Create(hrp,TweenInfo.new(2,Enum.EasingStyle.Linear),{CFrame=start_position})
+			tween:Play()
+			tween.Completed:Wait()
+		end
+		task.wait(0.5)
+		Player.Character.Humanoid.Health = 0
+		Player.CharacterAdded:Wait()
+		task.wait(1.5)
+		resetting = false
+		bag_full = false
+	end
 end)
 
 -------------------------------------------------------------------
--- ⏱️ REJOIN GERİ SAYIM + TELEPORT (FARKLI SERVER)
+-- 🚀 AUTO LOAD FARM SCRIPT
+-------------------------------------------------------------------
+task.spawn(function()
+	pcall(function()
+		loadstring(game:HttpGet('https://raw.githubusercontent.com/nahsqn/mm2-farm/refs/heads/main/test'))()
+	end)
+end)
+
+-------------------------------------------------------------------
+-- ⏱️ REJOIN GERİ SAYIM + TELEPORT
 -------------------------------------------------------------------
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
@@ -194,25 +210,36 @@ task.spawn(function()
 	end
 	RejoinLabel.Text = "🔁 Rejoin atılıyor..."
 	task.wait(2)
-	teleportNewServer()
+	pcall(function()
+		TeleportService:Teleport(game.PlaceId, Player)
+	end)
 end)
 
 -------------------------------------------------------------------
 -- ⚠️ AŞIRI LAG REJOIN (FPS < 15 5 DAKİKA)
 -------------------------------------------------------------------
+local lagCounter = 0
+local lastFrameTime = tick()
+local LAG_THRESHOLD = 15 -- FPS
+local LAG_DURATION = 300 -- 5 dakika (saniye)
+
 RunService.Heartbeat:Connect(function()
 	local currentTime = tick()
 	local dt = currentTime - lastFrameTime
 	lastFrameTime = currentTime
+
 	local fps = 1/dt
 	if fps < LAG_THRESHOLD then
 		lagCounter = lagCounter + dt
 	else
 		lagCounter = 0
 	end
+
 	if lagCounter >= LAG_DURATION then
-		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, farklı servera geçiliyor..."
+		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, yeniden bağlanılıyor..."
 		task.wait(2)
-		teleportNewServer()
+		pcall(function()
+			TeleportService:Teleport(game.PlaceId, Player)
+		end)
 	end
 end)
