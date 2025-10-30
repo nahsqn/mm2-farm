@@ -15,7 +15,7 @@ local HttpService = game:GetService("HttpService")
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 7200 -- 2 saat (saniye)
+local REJOIN_INTERVAL = 50 -- 2 saat (saniye)
 
 -- Lag kontrol değişkenleri
 local highLagStartTime = 0
