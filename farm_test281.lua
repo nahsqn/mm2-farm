@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER (PING BASED)
+-- ANTI AFK + ANTI LAG + AUTO REJOIN + FPS/PING + SERVER SWITCH
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -9,39 +9,29 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
-local NetworkClient = game:GetService("NetworkClient")
 
-local autoResetEnabled = true
-local resetting = false
-local bag_full = false
 local REJOIN_INTERVAL = 7200 -- 2 saat
-local MAX_PING = 150 -- ms, üstünde server değiştir
 local LAG_THRESHOLD = 15 -- FPS
-local LAG_DURATION = 300 -- saniye (5 dakika)
+local LAG_DURATION = 300 -- 5 dakika
 
--------------------------------------------------------------------
--- 💤 ANTI AFK
--------------------------------------------------------------------
+-- Anti AFK
 Player.Idled:Connect(function()
 	VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 	task.wait(1)
 	VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end)
 
--------------------------------------------------------------------
--- 💨 ANTI LAG / OPTIMIZE
--------------------------------------------------------------------
+-- Anti Lag / Optimize
 local function optimizePerformance()
 	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 	pcall(function() workspace.FallenPartsDestroyHeight = -500 end)
 	pcall(function() workspace.StreamingEnabled = true end)
-	pcall(function() Lighting.GlobalShadows = false end)
-	pcall(function() Lighting.FogEnd = 100000 end)
-	pcall(function() Lighting.Brightness = 2 end)
+	pcall(function() workspace.GlobalShadows = false end)
+	pcall(function() workspace.Lighting.FogEnd = 100000 end)
+	pcall(function() workspace.Lighting.Brightness = 2 end)
 	for _, v in pairs(workspace:GetDescendants()) do
 		if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
 			v.Enabled = false
@@ -50,23 +40,20 @@ local function optimizePerformance()
 end
 optimizePerformance()
 
--------------------------------------------------------------------
--- 💬 GUI PANEL
--------------------------------------------------------------------
+-- GUI PANEL
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,160)
-Frame.Position = UDim2.new(1,-290,1,140)
+Frame.Size = UDim2.new(0,280,0,140)
+Frame.Position = UDim2.new(1,-300,1,160)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.15
 Frame.ZIndex = 10
 Frame.ClipsDescendants = true
-Frame.Rotation = 1
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0,12)
@@ -77,57 +64,32 @@ Stroke.Parent = Frame
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,150,50)
 
-local function createLabel(parent,text,posY,color,size,emoji)
+local function createLabel(text,size,pos,color)
 	local lbl = Instance.new("TextLabel")
-	lbl.Parent = parent
-	lbl.Size = UDim2.new(1,0,0,22)
-	lbl.Position = UDim2.new(0,0,0,posY)
+	lbl.Parent = Frame
+	lbl.Size = UDim2.new(1,0,0,size)
+	lbl.Position = UDim2.new(0,0,0,pos)
 	lbl.BackgroundTransparency = 1
-	lbl.Text = (emoji or "").." "..text
+	lbl.Text = text
 	lbl.Font = Enum.Font.SourceSansBold
-	lbl.TextSize = size
+	lbl.TextSize = 17
 	lbl.TextColor3 = color
 	lbl.ZIndex = 11
 	return lbl
 end
 
-local Title = createLabel(Frame,"Anti AFK açık!",8,Color3.fromRGB(255,255,255),20,"🟢")
-local Sub1 = createLabel(Frame,"Anti Lag aktif!",35,Color3.fromRGB(255,255,255),18,"💨")
-local RejoinLabel = createLabel(Frame,"Rejoin: hazırlanıyor...",60,Color3.fromRGB(255,215,0),17,"⏳")
-
-local NewServerButton = Instance.new("TextButton")
-NewServerButton.Parent = Frame
-NewServerButton.Size = UDim2.new(1, -20, 0, 25)
-NewServerButton.Position = UDim2.new(0,10,0,90)
-NewServerButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
-NewServerButton.Text = "Yeni Sunucuya Geç"
-NewServerButton.Font = Enum.Font.SourceSansBold
-NewServerButton.TextSize = 16
-NewServerButton.TextColor3 = Color3.fromRGB(255,255,255)
-NewServerButton.ZIndex = 11
-local BtnCorner = Instance.new("UICorner")
-BtnCorner.CornerRadius = UDim.new(0,8)
-BtnCorner.Parent = NewServerButton
-
-local Credit = Instance.new("TextLabel")
-Credit.Parent = Frame
-Credit.Size = UDim2.new(1,-10,0,15)
-Credit.Position = UDim2.new(0,5,1,-20)
-Credit.BackgroundTransparency = 1
-Credit.Text = "by NQHSAN"
-Credit.Font = Enum.Font.SourceSansItalic
-Credit.TextSize = 11
-Credit.TextColor3 = Color3.fromRGB(200,200,200)
-Credit.TextXAlignment = Enum.TextXAlignment.Left
-Credit.ZIndex = 11
+local AntiAFKLabel = createLabel("Anti AFK aktif",25,8,Color3.fromRGB(255,255,255))
+local AntiLagLabel = createLabel("Anti Lag aktif",22,35,Color3.fromRGB(255,255,255))
+local FPSLabel = createLabel("FPS: ...",22,60,Color3.fromRGB(255,255,255))
+local PingLabel = createLabel("Ping: ...",22,85,Color3.fromRGB(255,255,255))
+local RejoinLabel = createLabel("Rejoin: hazırlanıyor...",22,110,Color3.fromRGB(255,215,0))
 
 -- GUI Animasyon
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-180),
-	Rotation = 0
+	Position = UDim2.new(1,-300,1,-160),
 }):Play()
 
--- GUI sürüklenebilirlik
+-- GUI Sürükleme
 local dragging = false
 local dragInput, mousePos, framePos
 Frame.InputBegan:Connect(function(input)
@@ -154,52 +116,14 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--------------------------------------------------------------------
--- 🪣 AUTO RESET (Bag Full)
--------------------------------------------------------------------
-local function getCharacter() return Player.Character or Player.CharacterAdded:Wait() end
-local function getHRP() return getCharacter():WaitForChild("HumanoidRootPart") end
-local start_position = getHRP().CFrame
-local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
-
-CoinCollected.OnClientEvent:Connect(function(_,current,max)
-	if current == max and not resetting and autoResetEnabled then
-		resetting = true
-		bag_full = true
-		local hrp = getHRP()
-		if start_position then
-			local tween = TweenService:Create(hrp,TweenInfo.new(2,Enum.EasingStyle.Linear),{CFrame=start_position})
-			tween:Play()
-			tween.Completed:Wait()
-		end
-		task.wait(0.5)
-		Player.Character.Humanoid.Health = 0
-		Player.CharacterAdded:Wait()
-		task.wait(1.5)
-		resetting = false
-		bag_full = false
-	end
-end)
-
--------------------------------------------------------------------
--- 🚀 AUTO LOAD FARM SCRIPT
--------------------------------------------------------------------
-task.spawn(function()
-	pcall(function()
-		loadstring(game:HttpGet('https://raw.githubusercontent.com/nahsqn/mm2-farm/refs/heads/main/test'))()
-	end)
-end)
-
--------------------------------------------------------------------
--- ⏱️ REJOIN GERİ SAYIM + TELEPORT
--------------------------------------------------------------------
+-- Rejoin geri sayım
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
 	while remaining > 0 do
 		local hours = math.floor(remaining/3600)
 		local minutes = math.floor((remaining%3600)/60)
 		local seconds = remaining % 60
-		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
+		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds", hours, minutes, seconds)
 		task.wait(1)
 		remaining -= 1
 	end
@@ -210,16 +134,83 @@ task.spawn(function()
 	end)
 end)
 
--------------------------------------------------------------------
--- 🌐 YENİ SUNUCUYA GEÇ BUTONU
--------------------------------------------------------------------
-local function goToNewServer()
-	RejoinLabel.Text = "🌐 Yeni sunucu aranıyor..."
+-- FPS ve Ping göstergesi
+local lastFrame = tick()
+local lagCounter = 0
+local LAG_THRESHOLD = 15
+local LAG_DURATION = 300
+
+RunService.Heartbeat:Connect(function()
+	local dt = tick()-lastFrame
+	lastFrame = tick()
+	local fps = 1/dt
+	FPSLabel.Text = string.format("FPS: %d", math.floor(fps))
+
+	local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+	PingLabel.Text = string.format("Ping: %d ms", math.floor(ping))
+
+	if fps < LAG_THRESHOLD then
+		lagCounter = lagCounter + dt
+	else
+		lagCounter = 0
+	end
+
+	if lagCounter >= LAG_DURATION then
+		RejoinLabel.Text = "⚠️ Sunucu çok kasıyor, yeni sunucu aranıyor..."
+		task.wait(2)
+		-- Yeni sunucuya git
+		local servers = {}
+		local PlaceID = game.PlaceId
+		local success, response = pcall(function()
+			return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"))
+		end)
+		if success and response and response.data then
+			for _,v in pairs(response.data) do
+				if v.playing < v.maxPlayers then
+					table.insert(servers,v.id)
+				end
+			end
+		end
+		if #servers > 0 then
+			local serverID = servers[math.random(1,#servers)]
+			TeleportService:TeleportToPlaceInstance(PlaceID, serverID, Player)
+		else
+			TeleportService:Teleport(PlaceID, Player)
+		end
+	end
+end)
+
+-- Yeni Servera Git butonu
+local Button = Instance.new("TextButton")
+Button.Parent = Frame
+Button.Size = UDim2.new(1,-20,0,25)
+Button.Position = UDim2.new(0,10,0,5)
+Button.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Button.TextColor3 = Color3.fromRGB(255,255,0)
+Button.Text = "Yeni Servera Git"
+Button.Font = Enum.Font.SourceSansBold
+Button.TextSize = 16
+Button.ZIndex = 11
+
+Button.MouseButton1Click:Connect(function()
+	RejoinLabel.Text = "🔁 Yeni sunucuya gidiliyor..."
 	task.wait(1)
+	local servers = {}
 	local PlaceID = game.PlaceId
 	local success, response = pcall(function()
-		return game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100")
+		return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"))
 	end)
-	if success then
-		local data = HttpService:JSONDecode(response)
-		local servers = data.data
+	if success and response and response.data then
+		for _,v in pairs(response.data) do
+			if v.playing < v.maxPlayers then
+				table.insert(servers,v.id)
+			end
+		end
+	end
+	if #servers > 0 then
+		local serverID = servers[math.random(1,#servers)]
+		TeleportService:TeleportToPlaceInstance(PlaceID, serverID, Player)
+	else
+		TeleportService:Teleport(PlaceID, Player)
+	end
+end)
