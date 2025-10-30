@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
--- 🍬 AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD
--- ✨ by NQHSAN
+-- 🍬 FULL SYSTEM BY NQHSAN
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -10,6 +10,8 @@ local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local autoResetEnabled = true
 local resetting = false
@@ -20,13 +22,13 @@ local REJOIN_INTERVAL = 7200 -- 2 saat (saniye)
 -- 💤 ANTI AFK
 -------------------------------------------------------------------
 Player.Idled:Connect(function()
-	VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+	VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 	task.wait(1)
-	VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+	VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end)
 
 -------------------------------------------------------------------
--- 💨 ANTI LAG
+-- 💨 ANTI LAG / OPTIMIZE
 -------------------------------------------------------------------
 local function optimizePerformance()
 	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
@@ -44,7 +46,7 @@ end
 optimizePerformance()
 
 -------------------------------------------------------------------
--- 💬 PANEL (ANİMASYONLU + GERİ SAYIM)
+-- 💬 GUI PANEL
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
@@ -52,9 +54,9 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 270, 0, 110)
-Frame.Position = UDim2.new(1, -290, 1, 140)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 255, 90)
+Frame.Size = UDim2.new(0,270,0,110)
+Frame.Position = UDim2.new(1,-290,1,140)
+Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.15
 Frame.ZIndex = 10
@@ -62,63 +64,95 @@ Frame.ClipsDescendants = true
 Frame.Rotation = 1
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.CornerRadius = UDim.new(0,12)
 UICorner.Parent = Frame
 
 local Stroke = Instance.new("UIStroke")
 Stroke.Parent = Frame
 Stroke.Thickness = 2
-Stroke.Color = Color3.fromRGB(0, 150, 50)
+Stroke.Color = Color3.fromRGB(0,150,50)
 
 local Title = Instance.new("TextLabel")
 Title.Parent = Frame
-Title.Size = UDim2.new(1, 0, 0, 25)
-Title.Position = UDim2.new(0, 0, 0, 8)
+Title.Size = UDim2.new(1,0,0,25)
+Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
 Title.Text = "🟢 Anti AFK açık!"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
-Title.TextColor3 = Color3.fromRGB(0, 0, 0)
+Title.TextColor3 = Color3.fromRGB(255,255,255)
 Title.ZIndex = 11
 
 local Sub1 = Instance.new("TextLabel")
 Sub1.Parent = Frame
-Sub1.Size = UDim2.new(1, 0, 0, 22)
-Sub1.Position = UDim2.new(0, 0, 0, 35)
+Sub1.Size = UDim2.new(1,0,0,22)
+Sub1.Position = UDim2.new(0,0,0,35)
 Sub1.BackgroundTransparency = 1
 Sub1.Text = "💨 Anti Lag aktif!"
 Sub1.Font = Enum.Font.SourceSansBold
 Sub1.TextSize = 18
-Sub1.TextColor3 = Color3.fromRGB(0, 0, 0)
+Sub1.TextColor3 = Color3.fromRGB(255,255,255)
 Sub1.ZIndex = 11
 
 local RejoinLabel = Instance.new("TextLabel")
 RejoinLabel.Parent = Frame
-RejoinLabel.Size = UDim2.new(1, 0, 0, 22)
-RejoinLabel.Position = UDim2.new(0, 0, 0, 60)
+RejoinLabel.Size = UDim2.new(1,0,0,22)
+RejoinLabel.Position = UDim2.new(0,0,0,60)
 RejoinLabel.BackgroundTransparency = 1
 RejoinLabel.Text = "⏳ Rejoin: hazırlanıyor..."
 RejoinLabel.Font = Enum.Font.SourceSansBold
 RejoinLabel.TextSize = 17
-RejoinLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
 RejoinLabel.ZIndex = 11
 
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
-Credit.Size = UDim2.new(1, -10, 0, 15)
-Credit.Position = UDim2.new(0, 5, 1, -20)
+Credit.Size = UDim2.new(1,-10,0,15)
+Credit.Position = UDim2.new(0,5,1,-20)
 Credit.BackgroundTransparency = 1
 Credit.Text = "by NQHSAN"
 Credit.Font = Enum.Font.SourceSansItalic
 Credit.TextSize = 11
-Credit.TextColor3 = Color3.fromRGB(60, 60, 60)
+Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Left
 Credit.ZIndex = 11
 
-TweenService:Create(Frame, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-	Position = UDim2.new(1, -290, 1, -140),
+-- GUI Animasyon
+TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+	Position = UDim2.new(1,-290,1,-140),
 	Rotation = 0
 }):Play()
+
+-- GUI sürüklenebilirlik
+local dragging = false
+local dragInput, mousePos, framePos
+
+Frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		mousePos = input.Position
+		framePos = Frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+Frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - mousePos
+		Frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset+delta.X, framePos.Y.Scale, framePos.Y.Offset+delta.Y)
+	end
+end)
 
 -------------------------------------------------------------------
 -- 🪣 AUTO RESET (Bag Full)
@@ -133,13 +167,13 @@ end
 local start_position = getHRP().CFrame
 local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
 
-CoinCollected.OnClientEvent:Connect(function(_, current, max)
+CoinCollected.OnClientEvent:Connect(function(_,current,max)
 	if current == max and not resetting and autoResetEnabled then
 		resetting = true
 		bag_full = true
 		local hrp = getHRP()
 		if start_position then
-			local tween = TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = start_position})
+			local tween = TweenService:Create(hrp,TweenInfo.new(2,Enum.EasingStyle.Linear),{CFrame=start_position})
 			tween:Play()
 			tween.Completed:Wait()
 		end
@@ -153,7 +187,7 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
 end)
 
 -------------------------------------------------------------------
--- 🚀 AUTO LOAD (mm2-farm)
+-- 🚀 AUTO LOAD FARM SCRIPT
 -------------------------------------------------------------------
 task.spawn(function()
 	pcall(function()
@@ -167,10 +201,10 @@ end)
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
 	while remaining > 0 do
-		local hours = math.floor(remaining / 3600)
-		local minutes = math.floor((remaining % 3600) / 60)
+		local hours = math.floor(remaining/3600)
+		local minutes = math.floor((remaining%3600)/60)
 		local seconds = remaining % 60
-		RejoinLabel.Text = string.format("⏳ Rejoin: %02ds %02dm %02ds kaldı", hours, minutes, seconds)
+		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
 		task.wait(1)
 		remaining -= 1
 	end
@@ -179,4 +213,33 @@ task.spawn(function()
 	pcall(function()
 		TeleportService:Teleport(game.PlaceId, Player)
 	end)
+end)
+
+-------------------------------------------------------------------
+-- ⚠️ AŞIRI LAG REJOIN (FPS < 15 5 DAKİKA)
+-------------------------------------------------------------------
+local lagCounter = 0
+local lastFrameTime = tick()
+local LAG_THRESHOLD = 15 -- FPS
+local LAG_DURATION = 300 -- 5 dakika (saniye)
+
+RunService.Heartbeat:Connect(function()
+	local currentTime = tick()
+	local dt = currentTime - lastFrameTime
+	lastFrameTime = currentTime
+
+	local fps = 1/dt
+	if fps < LAG_THRESHOLD then
+		lagCounter = lagCounter + dt
+	else
+		lagCounter = 0
+	end
+
+	if lagCounter >= LAG_DURATION then
+		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, yeniden bağlanılıyor..."
+		task.wait(2)
+		pcall(function()
+			TeleportService:Teleport(game.PlaceId, Player)
+		end)
+	end
 end)
