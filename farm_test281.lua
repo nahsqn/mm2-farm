@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER TELEPORT
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -17,7 +17,10 @@ local HttpService = game:GetService("HttpService")
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 7200 -- 2 saat (saniye)
+local REJOIN_INTERVAL = 7200 -- 2 saat
+local MAX_PING = 150 -- ms, üstünde server değiştir
+local LAG_THRESHOLD = 15 -- FPS
+local LAG_DURATION = 300 -- saniye (5 dakika)
 
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
@@ -55,7 +58,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,140)
+Frame.Size = UDim2.new(0,270,0,180)
 Frame.Position = UDim2.new(1,-290,1,140)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
@@ -73,43 +76,29 @@ Stroke.Parent = Frame
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,150,50)
 
-local Title = Instance.new("TextLabel")
-Title.Parent = Frame
-Title.Size = UDim2.new(1,0,0,25)
-Title.Position = UDim2.new(0,0,0,8)
-Title.BackgroundTransparency = 1
-Title.Text = "Anti AFK açık!"
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.TextColor3 = Color3.fromRGB(255,255,255)
-Title.ZIndex = 11
+local function createLabel(parent,text,posY,color,size,emoji)
+	local lbl = Instance.new("TextLabel")
+	lbl.Parent = parent
+	lbl.Size = UDim2.new(1,0,0,22)
+	lbl.Position = UDim2.new(0,0,0,posY)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = (emoji or "").." "..text
+	lbl.Font = Enum.Font.SourceSansBold
+	lbl.TextSize = size
+	lbl.TextColor3 = color
+	lbl.ZIndex = 11
+	return lbl
+end
 
-local Sub1 = Instance.new("TextLabel")
-Sub1.Parent = Frame
-Sub1.Size = UDim2.new(1,0,0,22)
-Sub1.Position = UDim2.new(0,0,0,35)
-Sub1.BackgroundTransparency = 1
-Sub1.Text = "Anti Lag aktif!"
-Sub1.Font = Enum.Font.SourceSansBold
-Sub1.TextSize = 18
-Sub1.TextColor3 = Color3.fromRGB(255,255,255)
-Sub1.ZIndex = 11
-
-local RejoinLabel = Instance.new("TextLabel")
-RejoinLabel.Parent = Frame
-RejoinLabel.Size = UDim2.new(1,0,0,22)
-RejoinLabel.Position = UDim2.new(0,0,0,60)
-RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "Rejoin: hazırlanıyor..."
-RejoinLabel.Font = Enum.Font.SourceSansBold
-RejoinLabel.TextSize = 17
-RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
-RejoinLabel.ZIndex = 11
+local Title = createLabel(Frame,"Anti AFK açık!",8,Color3.fromRGB(255,255,255),20,"🟢")
+local Sub1 = createLabel(Frame,"Anti Lag aktif!",35,Color3.fromRGB(255,255,255),18,"💨")
+local RejoinLabel = createLabel(Frame,"Rejoin: hazırlanıyor...",60,Color3.fromRGB(255,215,0),17,"⏳")
+local CollectedLabel = createLabel(Frame,"Toplanan Şeyler: 0 / 0",95,Color3.fromRGB(255,255,255),16,"🪙")
 
 local NewServerButton = Instance.new("TextButton")
 NewServerButton.Parent = Frame
-NewServerButton.Size = UDim2.new(1, -20, 0, 25)
-NewServerButton.Position = UDim2.new(0,10,0,90)
+NewServerButton.Size = UDim2.new(1,-20,0,25)
+NewServerButton.Position = UDim2.new(0,10,0,125)
 NewServerButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
 NewServerButton.Text = "Yeni Sunucuya Geç"
 NewServerButton.Font = Enum.Font.SourceSansBold
@@ -134,20 +123,18 @@ Credit.ZIndex = 11
 
 -- GUI Animasyon
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-180),
+	Position = UDim2.new(1,-290,1,-200),
 	Rotation = 0
 }):Play()
 
 -- GUI sürüklenebilirlik
 local dragging = false
 local dragInput, mousePos, framePos
-
 Frame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
 		mousePos = input.Position
 		framePos = Frame.Position
-
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -155,13 +142,11 @@ Frame.InputBegan:Connect(function(input)
 		end)
 	end
 end)
-
 Frame.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
 		dragInput = input
 	end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then
 		local delta = input.Position - mousePos
@@ -170,19 +155,15 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -------------------------------------------------------------------
--- 🪣 AUTO RESET (Bag Full)
+-- 🪣 AUTO RESET (Bag Full + Collected Label)
 -------------------------------------------------------------------
-local function getCharacter()
-	return Player.Character or Player.CharacterAdded:Wait()
-end
-local function getHRP()
-	return getCharacter():WaitForChild("HumanoidRootPart")
-end
-
+local function getCharacter() return Player.Character or Player.CharacterAdded:Wait() end
+local function getHRP() return getCharacter():WaitForChild("HumanoidRootPart") end
 local start_position = getHRP().CFrame
 local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
 
 CoinCollected.OnClientEvent:Connect(function(_,current,max)
+	CollectedLabel.Text = string.format("Toplanan Şeyler: %d / %d", current, max)
 	if current == max and not resetting and autoResetEnabled then
 		resetting = true
 		bag_full = true
@@ -219,11 +200,11 @@ task.spawn(function()
 		local hours = math.floor(remaining/3600)
 		local minutes = math.floor((remaining%3600)/60)
 		local seconds = remaining % 60
-		RejoinLabel.Text = string.format("Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
+		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
 		task.wait(1)
 		remaining -= 1
 	end
-	RejoinLabel.Text = "Rejoin atılıyor..."
+	RejoinLabel.Text = "🔁 Rejoin atılıyor..."
 	task.wait(2)
 	pcall(function()
 		TeleportService:Teleport(game.PlaceId, Player)
@@ -231,58 +212,29 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- 🌐 YENİ SUNUCUYA GEÇ BUTONU
--------------------------------------------------------------------
-NewServerButton.MouseButton1Click:Connect(function()
-	RejoinLabel.Text = "Yeni sunucu aranıyor..."
-	task.wait(1)
-	local PlaceID = game.PlaceId
-	local success, response = pcall(function()
-		return game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100")
-	end)
-	if success then
-		local data = HttpService:JSONDecode(response)
-		local servers = data.data
-		for _, server in pairs(servers) do
-			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				TeleportService:TeleportToPlaceInstance(PlaceID, server.id, Player)
-				RejoinLabel.Text = "Yeni sunucuya geçiliyor..."
-				return
-			end
-		end
-		RejoinLabel.Text = "Yeni sunucu bulunamadı, aynı sunucuya dönülüyor..."
-		task.wait(2)
-		TeleportService:Teleport(PlaceID, Player)
-	else
-		RejoinLabel.Text = "Sunucu listesi alınamadı!"
-	end
-end)
-
--------------------------------------------------------------------
 -- ⚠️ AŞIRI LAG REJOIN (FPS < 15 5 DAKİKA)
 -------------------------------------------------------------------
 local lagCounter = 0
 local lastFrameTime = tick()
-local LAG_THRESHOLD = 15 -- FPS
-local LAG_DURATION = 300 -- 5 dakika (saniye)
 
 RunService.Heartbeat:Connect(function()
 	local currentTime = tick()
 	local dt = currentTime - lastFrameTime
 	lastFrameTime = currentTime
-
 	local fps = 1/dt
 	if fps < LAG_THRESHOLD then
 		lagCounter = lagCounter + dt
 	else
 		lagCounter = 0
 	end
-
 	if lagCounter >= LAG_DURATION then
-		RejoinLabel.Text = "Oyun aşırı dondu, yeniden bağlanılıyor..."
+		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, yeniden bağlanılıyor..."
 		task.wait(2)
 		pcall(function()
 			TeleportService:Teleport(game.PlaceId, Player)
 		end)
 	end
 end)
+
+-------------------------------------------------------------------
+-- 🌐 YEN
