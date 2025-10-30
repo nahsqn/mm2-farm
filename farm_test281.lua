@@ -1,7 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD
--- ANİMASYONLU EMOJİSİZ GUI
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -47,7 +46,7 @@ end
 optimizePerformance()
 
 -------------------------------------------------------------------
--- 💬 GUI PANEL (ANİMASYONLU, EMOJİSİZ)
+-- 💬 GUI PANEL
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
@@ -78,7 +77,7 @@ Title.Parent = Frame
 Title.Size = UDim2.new(1,0,0,25)
 Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
-Title.Text = "Anti AFK"
+Title.Text = "🟢 Anti AFK açık!"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -89,7 +88,7 @@ Sub1.Parent = Frame
 Sub1.Size = UDim2.new(1,0,0,22)
 Sub1.Position = UDim2.new(0,0,0,35)
 Sub1.BackgroundTransparency = 1
-Sub1.Text = "Anti Lag aktif!"
+Sub1.Text = "💨 Anti Lag aktif!"
 Sub1.Font = Enum.Font.SourceSansBold
 Sub1.TextSize = 18
 Sub1.TextColor3 = Color3.fromRGB(255,255,255)
@@ -100,7 +99,7 @@ RejoinLabel.Parent = Frame
 RejoinLabel.Size = UDim2.new(1,0,0,22)
 RejoinLabel.Position = UDim2.new(0,0,0,60)
 RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "Rejoin: hazırlanıyor..."
+RejoinLabel.Text = "⏳ Rejoin: hazırlanıyor..."
 RejoinLabel.Font = Enum.Font.SourceSansBold
 RejoinLabel.TextSize = 17
 RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
@@ -155,50 +154,27 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- Anti-AFK Indicator (Animasyonlu)
-local AFKIndicator = Instance.new("Frame")
-AFKIndicator.Parent = Frame
-AFKIndicator.Size = UDim2.new(0,12,0,12)
-AFKIndicator.Position = UDim2.new(0,10,0,12)
-AFKIndicator.BackgroundColor3 = Color3.fromRGB(0,255,0)
-AFKIndicator.BorderSizePixel = 0
-AFKIndicator.ZIndex = 12
+-------------------------------------------------------------------
+-- 🌐 YENİ SUNUCUYA GEÇ BUTONU
+-------------------------------------------------------------------
+local NewServerButton = Instance.new("TextButton")
+NewServerButton.Parent = Frame
+NewServerButton.Size = UDim2.new(0,120,0,25)
+NewServerButton.Position = UDim2.new(1,-130,0,85) -- sağ alt
+NewServerButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
+NewServerButton.TextColor3 = Color3.fromRGB(255,255,255)
+NewServerButton.Text = "Yeni Sunucuya Git"
+NewServerButton.Font = Enum.Font.SourceSansBold
+NewServerButton.TextSize = 14
+NewServerButton.ZIndex = 11
+NewServerButton.AutoButtonColor = true
 
-task.spawn(function()
-	while true do
-		TweenService:Create(AFKIndicator, TweenInfo.new(0.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency = 0.3}):Play()
-		task.wait(0.5)
-		TweenService:Create(AFKIndicator, TweenInfo.new(0.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency = 0}):Play()
-		task.wait(0.5)
-	end
-end)
-
--- Anti-Lag Indicator (Animasyonlu)
-local LagIndicator = Instance.new("Frame")
-LagIndicator.Parent = Frame
-LagIndicator.Size = UDim2.new(0,12,0,12)
-LagIndicator.Position = UDim2.new(0,10,0,40)
-LagIndicator.BackgroundColor3 = Color3.fromRGB(0,255,0)
-LagIndicator.BorderSizePixel = 0
-LagIndicator.ZIndex = 12
-
-task.spawn(function()
-	while true do
-		TweenService:Create(LagIndicator, TweenInfo.new(0.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Size = UDim2.new(0,16,0,16)}):Play()
-		task.wait(0.6)
-		TweenService:Create(LagIndicator, TweenInfo.new(0.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Size = UDim2.new(0,12,0,12)}):Play()
-		task.wait(0.6)
-	end
-end)
-
--- Rejoin Label Fade Animasyonu
-task.spawn(function()
-	while true do
-		TweenService:Create(RejoinLabel, TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency = 0.3}):Play()
-		task.wait(0.8)
-		TweenService:Create(RejoinLabel, TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency = 0}):Play()
-		task.wait(0.8)
-	end
+NewServerButton.MouseButton1Click:Connect(function()
+    RejoinLabel.Text = "🌐 Yeni sunucuya geçiliyor..."
+    task.wait(1)
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, Player)
+    end)
 end)
 
 -------------------------------------------------------------------
@@ -251,11 +227,11 @@ task.spawn(function()
 		local hours = math.floor(remaining/3600)
 		local minutes = math.floor((remaining%3600)/60)
 		local seconds = remaining % 60
-		RejoinLabel.Text = string.format("Rejoin: %02dh %02dm %02ds", hours, minutes, seconds)
+		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
 		task.wait(1)
 		remaining -= 1
 	end
-	RejoinLabel.Text = "Rejoin atılıyor..."
+	RejoinLabel.Text = "🔁 Rejoin atılıyor..."
 	task.wait(2)
 	pcall(function()
 		TeleportService:Teleport(game.PlaceId, Player)
@@ -283,7 +259,7 @@ RunService.Heartbeat:Connect(function()
 	end
 
 	if lagCounter >= LAG_DURATION then
-		RejoinLabel.Text = "Oyun aşırı dondu, yeniden bağlanılıyor..."
+		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, yeniden bağlanılıyor..."
 		task.wait(2)
 		pcall(function()
 			TeleportService:Teleport(game.PlaceId, Player)
