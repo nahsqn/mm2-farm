@@ -19,7 +19,7 @@ local resetting = false
 local bag_full = false
 local REJOIN_INTERVAL = 7200 -- 2 saat
 local LAG_FPS = 15
-local LAG_TIME = 300 -- 5 dakika
+local LAG_TIME = 300 -- 5 dakika (FPS düşükse server değişimi)
 
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
@@ -166,7 +166,7 @@ NewServerButton.MouseButton1Click:Connect(function()
 	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
 	local servers = getServerList()
 	if #servers > 0 then
-		local newServer = servers[1] -- en düşük doluluk
+		local newServer = servers[1]
 		NewServerButton.Text = "🚀 Yeni sunucu bulundu!"
 		task.wait(1)
 		TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
@@ -217,12 +217,12 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ AUTO REJOIN + LAG SWITCH
+-- ⏱️ AUTO REJOIN + LAG SWITCH (5 dk lag + düşük ping servera geçiş)
 -------------------------------------------------------------------
 local function rejoinToLowPingServer()
 	local servers = getServerList()
 	if #servers > 0 then
-		local newServer = servers[1] -- en az dolu = düşük ping ihtimali
+		local newServer = servers[1]
 		TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
 	else
 		TeleportService:Teleport(game.PlaceId,Player)
@@ -245,21 +245,27 @@ task.spawn(function()
 	rejoinToLowPingServer()
 end)
 
--- FPS düşükse rejoin
+-- FPS düşükse 5 dk lag ölçümü ve server değişimi
 local lagCounter = 0
 local lastFrame = tick()
+local lagStartTime = nil
 
 RunService.Heartbeat:Connect(function()
 	local now = tick()
-	local fps = 1/(now - lastFrame)
+	local fps = 1 / (now - lastFrame)
 	lastFrame = now
+
 	if fps < LAG_FPS then
-		lagCounter += 1
+		if not lagStartTime then lagStartTime = now end
+		lagCounter = now - lagStartTime
+		RejoinLabel.Text = string.format("⚠️ Düşük FPS tespit edildi! %.0f saniye lag devam ediyor...", lagCounter)
 	else
 		lagCounter = 0
+		lagStartTime = nil
 	end
+
 	if lagCounter >= LAG_TIME then
-		RejoinLabel.Text = "⚠️ FPS düşük, yeni sunucuya geçiliyor..."
+		RejoinLabel.Text = "⚠️ 5 dk lag, yeni sunucu aranıyor..."
 		task.wait(2)
 		rejoinToLowPingServer()
 	end
