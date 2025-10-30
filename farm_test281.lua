@@ -17,6 +17,12 @@ local resetting = false
 local bag_full = false
 local REJOIN_INTERVAL = 7200 -- 2 saat (saniye)
 
+-- Lag kontrol değişkenleri
+local highLagStartTime = 0
+local LAG_CHECK_DURATION = 300 -- 5 dakika (saniye)
+local LAG_THRESHOLD = 500 -- 500ms ping
+local isHighLag = false
+
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
 -------------------------------------------------------------------
@@ -76,7 +82,7 @@ end
 
 local function checkLag()
     local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
-    return ping > 500 -- 500ms'den fazla ping lag olarak kabul edilir
+    return ping > LAG_THRESHOLD
 end
 
 -------------------------------------------------------------------
@@ -88,7 +94,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0, 270, 0, 140) -- Yükseklik arttırıldı
+Frame.Size = UDim2.new(0, 270, 0, 140)
 Frame.Position = UDim2.new(1, -290, 1, 140)
 Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 Frame.BorderSizePixel = 0
@@ -279,18 +285,50 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- 🔍 OTOMATİK LAG KONTROLÜ
+-- 🔍 5 DAKİKA BOYUNCA LAG KONTROLÜ
 -------------------------------------------------------------------
 task.spawn(function()
     while true do
-        if checkLag() then
-            Title.Text = "🔴 Yüksek Lag Tespit Edildi!"
-            Title.TextColor3 = Color3.fromRGB(255, 0, 0)
-            Sub1.Text = "🔄 Server değiştiriliyor..."
-            
-            task.wait(3)
-            changeServer()
+        local currentLag = checkLag()
+        
+        if currentLag then
+            if not isHighLag then
+                -- İlk kez yüksek lag tespit edildi
+                highLagStartTime = os.time()
+                isHighLag = true
+                Title.Text = "🟡 Yüksek Lag Tespit Edildi"
+                Title.TextColor3 = Color3.fromRGB(255, 255, 0)
+                Sub1.Text = "⏰ 5 dakika bekleniyor..."
+            else
+                -- Yüksek lag devam ediyor
+                local lagDuration = os.time() - highLagStartTime
+                local remainingTime = LAG_CHECK_DURATION - lagDuration
+                
+                if remainingTime > 0 then
+                    local minutes = math.floor(remainingTime / 60)
+                    local seconds = remainingTime % 60
+                    Sub1.Text = string.format("⏰ %02d:%02d sonra değişecek", minutes, seconds)
+                else
+                    -- 5 dakika doldu, server değiştir
+                    Title.Text = "🔴 Server Değiştiriliyor!"
+                    Title.TextColor3 = Color3.fromRGB(255, 0, 0)
+                    Sub1.Text = "🔄 Yeni server aranıyor..."
+                    
+                    task.wait(2)
+                    changeServer()
+                    isHighLag = false
+                end
+            end
+        else
+            -- Lag düzeldi
+            if isHighLag then
+                isHighLag = false
+                Title.Text = "🟢 Anti AFK açık!"
+                Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Sub1.Text = "💨 Anti Lag aktif!"
+            end
         end
-        task.wait(10) -- Her 10 saniyede bir lag kontrolü
+        
+        task.wait(2) -- Her 2 saniyede bir kontrol et
     end
 end)
