@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + AUTO LOAD + NEW SERVER TELEPORT
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -12,6 +12,7 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 local autoResetEnabled = true
 local resetting = false
@@ -54,7 +55,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,110)
+Frame.Size = UDim2.new(0,270,0,140)
 Frame.Position = UDim2.new(1,-290,1,140)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
@@ -77,7 +78,7 @@ Title.Parent = Frame
 Title.Size = UDim2.new(1,0,0,25)
 Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
-Title.Text = "🟢 Anti AFK açık!"
+Title.Text = "Anti AFK açık!"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -88,7 +89,7 @@ Sub1.Parent = Frame
 Sub1.Size = UDim2.new(1,0,0,22)
 Sub1.Position = UDim2.new(0,0,0,35)
 Sub1.BackgroundTransparency = 1
-Sub1.Text = "💨 Anti Lag aktif!"
+Sub1.Text = "Anti Lag aktif!"
 Sub1.Font = Enum.Font.SourceSansBold
 Sub1.TextSize = 18
 Sub1.TextColor3 = Color3.fromRGB(255,255,255)
@@ -99,11 +100,25 @@ RejoinLabel.Parent = Frame
 RejoinLabel.Size = UDim2.new(1,0,0,22)
 RejoinLabel.Position = UDim2.new(0,0,0,60)
 RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "⏳ Rejoin: hazırlanıyor..."
+RejoinLabel.Text = "Rejoin: hazırlanıyor..."
 RejoinLabel.Font = Enum.Font.SourceSansBold
 RejoinLabel.TextSize = 17
 RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
 RejoinLabel.ZIndex = 11
+
+local NewServerButton = Instance.new("TextButton")
+NewServerButton.Parent = Frame
+NewServerButton.Size = UDim2.new(1, -20, 0, 25)
+NewServerButton.Position = UDim2.new(0,10,0,90)
+NewServerButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
+NewServerButton.Text = "Yeni Sunucuya Geç"
+NewServerButton.Font = Enum.Font.SourceSansBold
+NewServerButton.TextSize = 16
+NewServerButton.TextColor3 = Color3.fromRGB(255,255,255)
+NewServerButton.ZIndex = 11
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0,8)
+BtnCorner.Parent = NewServerButton
 
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
@@ -119,7 +134,7 @@ Credit.ZIndex = 11
 
 -- GUI Animasyon
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-140),
+	Position = UDim2.new(1,-290,1,-180),
 	Rotation = 0
 }):Play()
 
@@ -152,29 +167,6 @@ UserInputService.InputChanged:Connect(function(input)
 		local delta = input.Position - mousePos
 		Frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset+delta.X, framePos.Y.Scale, framePos.Y.Offset+delta.Y)
 	end
-end)
-
--------------------------------------------------------------------
--- 🌐 YENİ SUNUCUYA GEÇ BUTONU
--------------------------------------------------------------------
-local NewServerButton = Instance.new("TextButton")
-NewServerButton.Parent = Frame
-NewServerButton.Size = UDim2.new(0,120,0,25)
-NewServerButton.Position = UDim2.new(1,-130,0,85) -- sağ alt
-NewServerButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
-NewServerButton.TextColor3 = Color3.fromRGB(255,255,255)
-NewServerButton.Text = "Yeni Sunucuya Git"
-NewServerButton.Font = Enum.Font.SourceSansBold
-NewServerButton.TextSize = 14
-NewServerButton.ZIndex = 11
-NewServerButton.AutoButtonColor = true
-
-NewServerButton.MouseButton1Click:Connect(function()
-    RejoinLabel.Text = "🌐 Yeni sunucuya geçiliyor..."
-    task.wait(1)
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, Player)
-    end)
 end)
 
 -------------------------------------------------------------------
@@ -227,15 +219,43 @@ task.spawn(function()
 		local hours = math.floor(remaining/3600)
 		local minutes = math.floor((remaining%3600)/60)
 		local seconds = remaining % 60
-		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
+		RejoinLabel.Text = string.format("Rejoin: %02dh %02dm %02ds kaldı", hours, minutes, seconds)
 		task.wait(1)
 		remaining -= 1
 	end
-	RejoinLabel.Text = "🔁 Rejoin atılıyor..."
+	RejoinLabel.Text = "Rejoin atılıyor..."
 	task.wait(2)
 	pcall(function()
 		TeleportService:Teleport(game.PlaceId, Player)
 	end)
+end)
+
+-------------------------------------------------------------------
+-- 🌐 YENİ SUNUCUYA GEÇ BUTONU
+-------------------------------------------------------------------
+NewServerButton.MouseButton1Click:Connect(function()
+	RejoinLabel.Text = "Yeni sunucu aranıyor..."
+	task.wait(1)
+	local PlaceID = game.PlaceId
+	local success, response = pcall(function()
+		return game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100")
+	end)
+	if success then
+		local data = HttpService:JSONDecode(response)
+		local servers = data.data
+		for _, server in pairs(servers) do
+			if server.id ~= game.JobId and server.playing < server.maxPlayers then
+				TeleportService:TeleportToPlaceInstance(PlaceID, server.id, Player)
+				RejoinLabel.Text = "Yeni sunucuya geçiliyor..."
+				return
+			end
+		end
+		RejoinLabel.Text = "Yeni sunucu bulunamadı, aynı sunucuya dönülüyor..."
+		task.wait(2)
+		TeleportService:Teleport(PlaceID, Player)
+	else
+		RejoinLabel.Text = "Sunucu listesi alınamadı!"
+	end
 end)
 
 -------------------------------------------------------------------
@@ -259,7 +279,7 @@ RunService.Heartbeat:Connect(function()
 	end
 
 	if lagCounter >= LAG_DURATION then
-		RejoinLabel.Text = "⚠️ Oyun aşırı dondu, yeniden bağlanılıyor..."
+		RejoinLabel.Text = "Oyun aşırı dondu, yeniden bağlanılıyor..."
 		task.wait(2)
 		pcall(function()
 			TeleportService:Teleport(game.PlaceId, Player)
