@@ -18,8 +18,8 @@ local autoResetEnabled = true
 local resetting = false
 local bag_full = false
 local REJOIN_INTERVAL = 140000 -- 2 saat
-local LAG_FPS = 15
-local LAG_TIME = 300 -- 5 dakika (FPS düşükse server değişimi)
+local LAG_FPS = 25
+local LAG_TIME = 59 -- 5 dakika (FPS düşükse server değişimi)
 
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
