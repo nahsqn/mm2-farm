@@ -1,6 +1,7 @@
 -------------------------------------------------------------------
--- 🍬 FULL SYSTEM BY NQHSAN (DÜZENLENMİŞ)
+-- 🍬 FULL SYSTEM BY NQHSAN (GÜNCELLENMİŞ ŞIK VERSİYON)
 -- AUTO RESET + ANTI AFK + ANTI LAG + YENİ SERVER + AUTO LOAD + LOW PING SWITCH + FPS/PING
+-- TELEPORT SÜRESİ: 15 DK
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -13,11 +14,12 @@ local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
 
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 140000
+local TELEPORT_INTERVAL = 900 -- 15 dakika
 local LAG_FPS = 34
 local LAG_TIME = 15
 
@@ -78,7 +80,7 @@ local function getServerList()
 end
 
 -------------------------------------------------------------------
--- 💬 GUI PANEL
+-- 💬 GUI PANEL (ŞIK & KOMPAKT)
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
@@ -86,76 +88,50 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,160)
-Frame.Position = UDim2.new(1,-290,1,140)
-Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Frame.Size = UDim2.new(0,280,0,170)
+Frame.Position = UDim2.new(1,-300,1,150)
+Frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Frame.BorderSizePixel = 0
-Frame.BackgroundTransparency = 0.15
+Frame.BackgroundTransparency = 0.1
 Frame.ZIndex = 10
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0,12)
+UICorner.CornerRadius = UDim.new(0,14)
 UICorner.Parent = Frame
 
 local Stroke = Instance.new("UIStroke")
 Stroke.Parent = Frame
 Stroke.Thickness = 2
-Stroke.Color = Color3.fromRGB(0,150,50)
+Stroke.Color = Color3.fromRGB(0,180,80)
 
-local Title = Instance.new("TextLabel")
-Title.Parent = Frame
-Title.Size = UDim2.new(1,0,0,25)
-Title.Position = UDim2.new(0,0,0,8)
-Title.BackgroundTransparency = 1
-Title.Text = "🟢 Anti AFK açık!"
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.TextColor3 = Color3.fromRGB(255,255,255)
-Title.ZIndex = 11
+local function createLabel(text,posY,sizeZ,color)
+	local lbl = Instance.new("TextLabel")
+	lbl.Parent = Frame
+	lbl.Size = UDim2.new(1,0,0,22)
+	lbl.Position = UDim2.new(0,0,0,posY)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = sizeZ
+	lbl.TextColor3 = color
+	lbl.ZIndex = 11
+	return lbl
+end
 
-local Sub1 = Instance.new("TextLabel")
-Sub1.Parent = Frame
-Sub1.Size = UDim2.new(1,0,0,22)
-Sub1.Position = UDim2.new(0,0,0,35)
-Sub1.BackgroundTransparency = 1
-Sub1.Text = "💨 Anti Lag aktif!"
-Sub1.Font = Enum.Font.SourceSansBold
-Sub1.TextSize = 18
-Sub1.TextColor3 = Color3.fromRGB(255,255,255)
-Sub1.ZIndex = 11
-
-local RejoinLabel = Instance.new("TextLabel")
-RejoinLabel.Parent = Frame
-RejoinLabel.Size = UDim2.new(1,0,0,22)
-RejoinLabel.Position = UDim2.new(0,0,0,60)
-RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "⏳ Rejoin: hazırlanıyor..."
-RejoinLabel.Font = Enum.Font.SourceSansBold
-RejoinLabel.TextSize = 17
-RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
-RejoinLabel.ZIndex = 11
-
-local fpsLabel = Instance.new("TextLabel")
-fpsLabel.Parent = Frame
-fpsLabel.Size = UDim2.new(1,0,0,22)
-fpsLabel.Position = UDim2.new(0,0,0,115)
-fpsLabel.BackgroundTransparency = 1
-fpsLabel.Text = "FPS: -- | Ping: --"
-fpsLabel.Font = Enum.Font.SourceSansBold
-fpsLabel.TextSize = 16
-fpsLabel.TextColor3 = Color3.fromRGB(255,255,255)
-fpsLabel.ZIndex = 11
+local Title = createLabel("🟢 Anti AFK aktif!",8,20,Color3.fromRGB(255,255,255))
+local Sub1 = createLabel("💨 Anti Lag aktif!",35,18,Color3.fromRGB(255,255,255))
+local RejoinLabel = createLabel("⏳ Server durumu hazırlanıyor...",60,17,Color3.fromRGB(255,215,0))
+local fpsLabel = createLabel("FPS: -- | Ping: --",115,16,Color3.fromRGB(255,255,255))
 
 local NewServerButton = Instance.new("TextButton")
 NewServerButton.Parent = Frame
 NewServerButton.Size = UDim2.new(1,-20,0,30)
 NewServerButton.Position = UDim2.new(0,10,0,90)
-NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
+NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
 NewServerButton.Text = "🚀 Yeni Servera Git"
 NewServerButton.TextColor3 = Color3.new(1,1,1)
-NewServerButton.Font = Enum.Font.SourceSansBold
+NewServerButton.Font = Enum.Font.GothamBold
 NewServerButton.TextSize = 18
-
 local UICorner2 = Instance.new("UICorner")
 UICorner2.Parent = NewServerButton
 
@@ -165,14 +141,14 @@ Credit.Size = UDim2.new(1,-10,0,15)
 Credit.Position = UDim2.new(0,5,1,-20)
 Credit.BackgroundTransparency = 1
 Credit.Text = "by NQHSAN ✨"
-Credit.Font = Enum.Font.SourceSansItalic
-Credit.TextSize = 11
+Credit.Font = Enum.Font.Gotham
+Credit.TextSize = 12
 Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Left
 Credit.ZIndex = 11
 
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-140)
+	Position = UDim2.new(1,-300,1,-150)
 }):Play()
 
 -------------------------------------------------------------------
@@ -180,7 +156,6 @@ TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDir
 -------------------------------------------------------------------
 local function getCharacter() return Player.Character or Player.CharacterAdded:Wait() end
 local function getHRP() return getCharacter():WaitForChild("HumanoidRootPart") end
-
 local start_position = getHRP().CFrame
 local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
 
@@ -213,47 +188,53 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ YENİ SERVER BUTONU & REJOIN YENİ SERVER
+-- ⏱️ YENİ SERVER BUTONU & TELEPORT 15 DK
 -------------------------------------------------------------------
+local lastTeleport = 0
 NewServerButton.MouseButton1Click:Connect(function()
-    NewServerButton.Text = "🔍 Server aranıyor..."
-    NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
+	if tick() - lastTeleport < TELEPORT_INTERVAL then
+		NewServerButton.Text = "⏱️ Bekle "..math.floor(TELEPORT_INTERVAL - (tick()-lastTeleport)).."s"
+		return
+	end
+	lastTeleport = tick()
+	NewServerButton.Text = "🔍 Server aranıyor..."
+	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
     
-    local servers = getServerList()
-    local triedServers = {}
-    while #servers > 0 do
-        local newServer = servers[1]
-        table.remove(servers, 1)
-        if not triedServers[newServer.id] then
-            local success, err = pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, newServer.id, Player)
-            end)
-            if success then return end
-            triedServers[newServer.id] = true
-        end
-        task.wait(1)
-    end
+	local servers = getServerList()
+	local triedServers = {}
+	while #servers > 0 do
+		local newServer = servers[1]
+		table.remove(servers, 1)
+		if not triedServers[newServer.id] then
+			local success, err = pcall(function()
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, newServer.id, Player)
+			end)
+			if success then return end
+			triedServers[newServer.id] = true
+		end
+		task.wait(1)
+	end
     
-    NewServerButton.Text = "❌ Uygun server yok!"
-    NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
-    task.wait(2)
-    NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
-    NewServerButton.Text = "🚀 Yeni Servera Git"
+	NewServerButton.Text = "❌ Uygun server yok!"
+	NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	task.wait(2)
+	NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
+	NewServerButton.Text = "🚀 Yeni Servera Git"
 end)
 
 -------------------------------------------------------------------
 -- ⏱️ FPS + PING GÖSTERGESİ
 -------------------------------------------------------------------
 task.spawn(function()
-    local lastTime = tick()
-    while true do
-        local now = tick()
-        local fps = math.floor(1 / (now - lastTime))
-        lastTime = now
-        local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
-        fpsLabel.Text = string.format("FPS: %d | Ping: %d ms", fps, ping)
-        task.wait(2.5)
-    end
+	local lastTime = tick()
+	while true do
+		local now = tick()
+		local fps = math.floor(1 / (now - lastTime))
+		lastTime = now
+		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+		fpsLabel.Text = string.format("FPS: %d | Ping: %d ms", fps, ping)
+		task.wait(2.5)
+	end
 end)
 
 -------------------------------------------------------------------
@@ -281,14 +262,14 @@ RunService.Heartbeat:Connect(function()
 	if fps < LAG_FPS then
 		if not lagStartTime then lagStartTime = now end
 		lagCounter = now - lagStartTime
-		RejoinLabel.Text = string.format("⚠️ Düşük FPS tespit edildi! %.0f saniye lag devam ediyor...", lagCounter)
+		RejoinLabel.Text = string.format("⚠️ Düşük FPS! %.0f sn lag...", lagCounter)
 	else
 		lagCounter = 0
 		lagStartTime = nil
 	end
 
 	if lagCounter >= LAG_TIME then
-		RejoinLabel.Text = "⚠️ yeni sunucu aranıyor..."
+		RejoinLabel.Text = "⚠️ yeni server aranıyor..."
 		task.wait(2)
 		rejoinToLowPingServer()
 	end
