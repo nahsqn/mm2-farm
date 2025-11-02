@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
 -- 🍬 FULL SYSTEM BY NQHSAN
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + NEW SERVER + AUTO LOAD + LOW PING SWITCH + FPS MONITOR
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + NEW SERVER + AUTO LOAD + LOW PING SWITCH + FPS GÖSTERGESİ
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -17,9 +17,9 @@ local UserInputService = game:GetService("UserInputService")
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 140000
+local REJOIN_INTERVAL = 140000 -- Zamanlı rejoin
 local LAG_FPS = 34
-local LAG_TIME = 15
+local LAG_TIME = 15 -- FPS düşükse server değişimi
 
 -------------------------------------------------------------------
 -- 💤 ANTI AFK
@@ -49,7 +49,7 @@ end
 optimizePerformance()
 
 -------------------------------------------------------------------
--- 🌐 SERVER LIST (DÜŞÜK PING)
+-- 🌐 SERVER LIST (DÜŞÜK PING TAHMİNİ)
 -------------------------------------------------------------------
 local function getServerList()
 	local servers = {}
@@ -86,7 +86,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,170)
+Frame.Size = UDim2.new(0,270,0,180) -- FPS için yükseklik artırıldı
 Frame.Position = UDim2.new(1,-290,1,140)
 Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
@@ -145,16 +145,6 @@ NewServerButton.TextSize = 18
 local UICorner2 = Instance.new("UICorner")
 UICorner2.Parent = NewServerButton
 
-local FPSLabel = Instance.new("TextLabel")
-FPSLabel.Parent = Frame
-FPSLabel.Size = UDim2.new(1,0,0,20)
-FPSLabel.Position = UDim2.new(0,0,0,125)
-FPSLabel.BackgroundTransparency = 1
-FPSLabel.Text = "🎯 FPS: hesaplanıyor..."
-FPSLabel.Font = Enum.Font.SourceSansBold
-FPSLabel.TextSize = 16
-FPSLabel.TextColor3 = Color3.fromRGB(100,255,100)
-
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
 Credit.Size = UDim2.new(1,-10,0,15)
@@ -166,25 +156,32 @@ Credit.TextSize = 11
 Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Left
 
-TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-140)
-}):Play()
+-------------------------------------------------------------------
+-- 🎯 FPS GÖSTERGESİ
+-------------------------------------------------------------------
+local FPSLabel = Instance.new("TextLabel")
+FPSLabel.Parent = Frame
+FPSLabel.Size = UDim2.new(1,0,0,22)
+FPSLabel.Position = UDim2.new(0,0,0,140)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.Text = "🎯 FPS: hesaplanıyor..."
+FPSLabel.Font = Enum.Font.SourceSansBold
+FPSLabel.TextSize = 17
+FPSLabel.TextColor3 = Color3.fromRGB(173,255,47)
 
-NewServerButton.MouseButton1Click:Connect(function()
-	NewServerButton.Text = "🔍 Server aranıyor..."
-	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
-	local servers = getServerList()
-	if #servers > 0 then
-		local newServer = servers[1]
-		NewServerButton.Text = "🚀 Yeni sunucu bulundu!"
-		task.wait(1)
-		TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
-	else
-		NewServerButton.Text = "❌ Uygun server yok!"
-		NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
-		task.wait(2)
-		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
-		NewServerButton.Text = "🚀 Yeni Servera Git"
+local lastFrameTime = tick()
+local fpsValue = 0
+
+RunService.Heartbeat:Connect(function()
+	local now = tick()
+	fpsValue = 1 / (now - lastFrameTime)
+	lastFrameTime = now
+end)
+
+task.spawn(function()
+	while true do
+		FPSLabel.Text = string.format("🎯 FPS: %.0f", fpsValue)
+		task.wait(0.5)
 	end
 end)
 
@@ -226,7 +223,7 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ AUTO REJOIN + LAG SWITCH
+-- ⏱️ AUTO REJOIN + LAG SWITCH (5 dk lag + düşük ping servera geçiş)
 -------------------------------------------------------------------
 local function rejoinToLowPingServer()
 	local servers = getServerList()
@@ -238,7 +235,6 @@ local function rejoinToLowPingServer()
 	end
 end
 
--- Zamanlı Rejoin
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
 	while remaining > 0 do
@@ -254,36 +250,40 @@ task.spawn(function()
 	rejoinToLowPingServer()
 end)
 
--------------------------------------------------------------------
--- ⚡ FPS TAKİP (2.5 saniyede yenilenir) + LAG ALGILAMA
--------------------------------------------------------------------
-local lastFrame = tick()
-local lastUpdate = tick()
 local lagCounter = 0
 local lagStartTime = nil
 
 RunService.Heartbeat:Connect(function()
-	local now = tick()
-	local fps = 1 / (now - lastFrame)
-	lastFrame = now
-
-	if tick() - lastUpdate >= 2.5 then
-		FPSLabel.Text = string.format("🎯 FPS: %.0f", fps)
-		lastUpdate = tick()
-	end
-
-	if fps < LAG_FPS then
-		if not lagStartTime then lagStartTime = now end
-		lagCounter = now - lagStartTime
-		RejoinLabel.Text = string.format("⚠️ Düşük FPS tespit edildi! %.0f sn lag...", lagCounter)
+	if fpsValue < LAG_FPS then
+		if not lagStartTime then lagStartTime = tick() end
+		lagCounter = tick() - lagStartTime
+		RejoinLabel.Text = string.format("⚠️ Düşük FPS tespit edildi! %.0f saniye lag devam ediyor...", lagCounter)
 	else
 		lagCounter = 0
 		lagStartTime = nil
 	end
 
 	if lagCounter >= LAG_TIME then
-		RejoinLabel.Text = "⚠️ Yeni sunucu aranıyor..."
+		RejoinLabel.Text = "⚠️ yeni sunucu aranıyor..."
 		task.wait(2)
 		rejoinToLowPingServer()
+	end
+end)
+
+NewServerButton.MouseButton1Click:Connect(function()
+	NewServerButton.Text = "🔍 Server aranıyor..."
+	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
+	local servers = getServerList()
+	if #servers > 0 then
+		local newServer = servers[1]
+		NewServerButton.Text = "🚀 Yeni sunucu bulundu!"
+		task.wait(1)
+		TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
+	else
+		NewServerButton.Text = "❌ Uygun server yok!"
+		NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
+		task.wait(2)
+		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
+		NewServerButton.Text = "🚀 Yeni Servera Git"
 	end
 end)
