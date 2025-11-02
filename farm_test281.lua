@@ -1,7 +1,6 @@
 -------------------------------------------------------------------
--- 🍬 FULL SYSTEM BY NQHSAN (GÜNCELLENMİŞ ŞIK VERSİYON)
--- AUTO RESET + ANTI AFK + ANTI LAG + YENİ SERVER + AUTO LOAD + LOW PING SWITCH + FPS/PING
--- TELEPORT SÜRESİ: 15 DK
+-- 🍬 FULL SYSTEM BY NQHSAN (TAM ENTEGRE)
+-- AUTO RESET + ANTI AFK + ANTI LAG + YENİ SERVER + FPS/PING + TELEPORT SÜRESİ
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -13,7 +12,6 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
 
 local autoResetEnabled = true
@@ -80,7 +78,7 @@ local function getServerList()
 end
 
 -------------------------------------------------------------------
--- 💬 GUI PANEL (ŞIK & KOMPAKT)
+-- 💬 GUI PANEL
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
@@ -88,7 +86,7 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,280,0,170)
+Frame.Size = UDim2.new(0,280,0,180)
 Frame.Position = UDim2.new(1,-300,1,150)
 Frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Frame.BorderSizePixel = 0
@@ -126,7 +124,7 @@ local fpsLabel = createLabel("FPS: -- | Ping: --",115,16,Color3.fromRGB(255,255,
 local NewServerButton = Instance.new("TextButton")
 NewServerButton.Parent = Frame
 NewServerButton.Size = UDim2.new(1,-20,0,30)
-NewServerButton.Position = UDim2.new(0,10,0,90)
+NewServerButton.Position = UDim2.new(0,10,0,140)
 NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
 NewServerButton.Text = "🚀 Yeni Servera Git"
 NewServerButton.TextColor3 = Color3.new(1,1,1)
@@ -188,48 +186,59 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ YENİ SERVER BUTONU & TELEPORT 15 DK
+-- ⏱️ TELEPORT BUTONU + SÜRE GÖSTERGESİ
 -------------------------------------------------------------------
 local lastTeleport = 0
-NewServerButton.MouseButton1Click:Connect(function()
-	if tick() - lastTeleport < TELEPORT_INTERVAL then
-		NewServerButton.Text = "⏱️ Bekle "..math.floor(TELEPORT_INTERVAL - (tick()-lastTeleport)).."s"
-		return
+
+task.spawn(function()
+	while true do
+		local remaining = math.max(0, TELEPORT_INTERVAL - (tick() - lastTeleport))
+		if remaining > 0 then
+			NewServerButton.Text = "⏱️ Bekle: "..math.floor(remaining).."s"
+			NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
+		else
+			NewServerButton.Text = "🚀 Yeni Servera Git"
+			NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
+		end
+		task.wait(0.5)
 	end
+end)
+
+NewServerButton.MouseButton1Click:Connect(function()
+	if tick() - lastTeleport < TELEPORT_INTERVAL then return end
 	lastTeleport = tick()
 	NewServerButton.Text = "🔍 Server aranıyor..."
 	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
-    
+
 	local servers = getServerList()
 	local triedServers = {}
 	while #servers > 0 do
 		local newServer = servers[1]
-		table.remove(servers, 1)
+		table.remove(servers,1)
 		if not triedServers[newServer.id] then
-			local success, err = pcall(function()
-				TeleportService:TeleportToPlaceInstance(game.PlaceId, newServer.id, Player)
+			local success = pcall(function()
+				TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
 			end)
 			if success then return end
 			triedServers[newServer.id] = true
 		end
 		task.wait(1)
 	end
-    
 	NewServerButton.Text = "❌ Uygun server yok!"
 	NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
 	task.wait(2)
-	NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
 	NewServerButton.Text = "🚀 Yeni Servera Git"
+	NewServerButton.BackgroundColor3 = Color3.fromRGB(0,180,80)
 end)
 
 -------------------------------------------------------------------
 -- ⏱️ FPS + PING GÖSTERGESİ
 -------------------------------------------------------------------
+local lastTime = tick()
 task.spawn(function()
-	local lastTime = tick()
 	while true do
 		local now = tick()
-		local fps = math.floor(1 / (now - lastTime))
+		local fps = math.floor(1 / math.max(0.001, now - lastTime))
 		lastTime = now
 		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
 		fpsLabel.Text = string.format("FPS: %d | Ping: %d ms", fps, ping)
@@ -238,11 +247,11 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ LAG ALGILAMA & LOW PING SERVER GEÇİŞ
+-- ⏱️ LAG ALGILAMA & LOW PING SERVER
 -------------------------------------------------------------------
 local lagCounter = 0
-local lastFrame = tick()
 local lagStartTime = nil
+local lastFrame = tick()
 
 local function rejoinToLowPingServer()
 	local servers = getServerList()
@@ -256,7 +265,7 @@ end
 
 RunService.Heartbeat:Connect(function()
 	local now = tick()
-	local fps = 1 / (now - lastFrame)
+	local fps = 1 / math.max(0.001, now - lastFrame)
 	lastFrame = now
 
 	if fps < LAG_FPS then
