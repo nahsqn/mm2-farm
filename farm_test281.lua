@@ -1,6 +1,6 @@
 -------------------------------------------------------------------
--- 🍬 FULL SYSTEM BY NQHSAN (Final Version)
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO LOAD + NEW SERVER + LOW PING SWITCH + PANEL TOGGLE
+-- 🍬 FULL SYSTEM BY NQHSAN (Updated GUI + Auto Button Rejoin)
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO LOAD + NEW SERVER + LOW PING SWITCH
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local HttpService = game:GetService("HttpService")
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 140000
+local REJOIN_INTERVAL = 140000 --  ~140 sn örnek
 local LAG_FPS = 34
 local LAG_TIME = 15
 
@@ -77,7 +77,7 @@ local function getServerList()
 end
 
 -------------------------------------------------------------------
--- 💬 GUI PANEL (YENİ DÜZEN + KAPAT BUTONU)
+-- 💬 GUI PANEL (YENİ DÜZEN)
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
@@ -88,7 +88,7 @@ ScreenGui.ResetOnSpawn = false
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
 Frame.Size = UDim2.new(0,270,0,180)
-Frame.Position = UDim2.new(1,-290,1,-160)
+Frame.Position = UDim2.new(1,-290,1,200)
 Frame.BackgroundColor3 = Color3.fromRGB(45,45,45)
 Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.15
@@ -102,37 +102,6 @@ local Stroke = Instance.new("UIStroke")
 Stroke.Parent = Frame
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,200,0)
-
--- ❌ KAPAT BUTONU
-local CloseButton = Instance.new("TextButton")
-CloseButton.Parent = Frame
-CloseButton.Size = UDim2.new(0,25,0,25)
-CloseButton.Position = UDim2.new(1,-30,0,5)
-CloseButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
-CloseButton.Text = "✖"
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 20
-CloseButton.TextColor3 = Color3.fromRGB(255,255,255)
-CloseButton.ZIndex = 11
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(1,0)
-CloseCorner.Parent = CloseButton
-
--- 🟢 GÖSTER BUTONU (Başta gizli)
-local ShowButton = Instance.new("TextButton")
-ShowButton.Parent = ScreenGui
-ShowButton.Size = UDim2.new(0,40,0,40)
-ShowButton.Position = UDim2.new(1,-60,1,-60)
-ShowButton.BackgroundColor3 = Color3.fromRGB(0,180,70)
-ShowButton.Text = "🟢"
-ShowButton.Font = Enum.Font.SourceSansBold
-ShowButton.TextSize = 22
-ShowButton.TextColor3 = Color3.fromRGB(255,255,255)
-ShowButton.Visible = false
-local ShowCorner = Instance.new("UICorner")
-ShowCorner.CornerRadius = UDim.new(1,0)
-ShowCorner.Parent = ShowButton
 
 -- Başlık
 local Title = Instance.new("TextLabel")
@@ -190,6 +159,7 @@ NewServerButton.TextColor3 = Color3.new(1,1,1)
 NewServerButton.Font = Enum.Font.SourceSansBold
 NewServerButton.TextSize = 18
 NewServerButton.ZIndex = 11
+
 local UICorner2 = Instance.new("UICorner")
 UICorner2.Parent = NewServerButton
 
@@ -205,18 +175,9 @@ Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Center
 Credit.ZIndex = 11
 
--------------------------------------------------------------------
--- 🟩 PANEL GİZLE / GÖSTER
--------------------------------------------------------------------
-CloseButton.MouseButton1Click:Connect(function()
-	Frame.Visible = false
-	ShowButton.Visible = true
-end)
-
-ShowButton.MouseButton1Click:Connect(function()
-	Frame.Visible = true
-	ShowButton.Visible = false
-end)
+TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+	Position = UDim2.new(1,-290,1,-160)
+}):Play()
 
 -------------------------------------------------------------------
 -- 🛰️ Yeni Servera Git Butonu
