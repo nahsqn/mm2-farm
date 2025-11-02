@@ -1,6 +1,5 @@
 -------------------------------------------------------------------
--- 🍬 FULL SYSTEM BY NQHSAN (Updated GUI + Auto Button Rejoin)
--- AUTO RESET + ANTI AFK + ANTI LAG + AUTO LOAD + NEW SERVER + LOW PING SWITCH
+-- 🍬 FULL SYSTEM BY NQHSAN (No Rejoin | Auto Click "Yeni Servera Git" | 2.5s Refresh)
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -16,7 +15,8 @@ local HttpService = game:GetService("HttpService")
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 140000 --  ~140 sn örnek
+local REJOIN_INTERVAL = 140000 -- süre dolunca butona tıklayacak
+local REFRESH_DELAY = 2.5 -- süre yenileme hızı
 local LAG_FPS = 34
 local LAG_TIME = 15
 
@@ -48,7 +48,7 @@ end
 optimizePerformance()
 
 -------------------------------------------------------------------
--- 🌐 SERVER LIST (LOW PING)
+-- 🌐 SERVER LIST (Düşük ping tahmini)
 -------------------------------------------------------------------
 local function getServerList()
 	local servers = {}
@@ -56,7 +56,9 @@ local function getServerList()
 	local success, response
 	repeat
 		success, response = pcall(function()
-			return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")))
+			return HttpService:JSONDecode(game:HttpGet(
+				"https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")
+			))
 		end)
 		if success and response and response.data then
 			for _, server in pairs(response.data) do
@@ -77,21 +79,20 @@ local function getServerList()
 end
 
 -------------------------------------------------------------------
--- 💬 GUI PANEL (YENİ DÜZEN)
+-- 💬 GUI PANEL
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,180)
-Frame.Position = UDim2.new(1,-290,1,200)
+Frame.Size = UDim2.new(0,270,0,150)
+Frame.Position = UDim2.new(1,-290,1,140)
 Frame.BackgroundColor3 = Color3.fromRGB(45,45,45)
 Frame.BorderSizePixel = 0
-Frame.BackgroundTransparency = 0.15
+Frame.BackgroundTransparency = 0.1
 Frame.ZIndex = 10
 
 local UICorner = Instance.new("UICorner")
@@ -101,87 +102,71 @@ UICorner.Parent = Frame
 local Stroke = Instance.new("UIStroke")
 Stroke.Parent = Frame
 Stroke.Thickness = 2
-Stroke.Color = Color3.fromRGB(0,200,0)
+Stroke.Color = Color3.fromRGB(0,180,70)
 
--- Başlık
 local Title = Instance.new("TextLabel")
 Title.Parent = Frame
-Title.Size = UDim2.new(1,0,0,30)
-Title.Position = UDim2.new(0,0,0,5)
+Title.Size = UDim2.new(1,0,0,25)
+Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
-Title.Text = "🍬 NQHSAN SYSTEM"
+Title.Text = "🟢 Anti AFK aktif!"
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 21
+Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255,255,255)
 Title.ZIndex = 11
 
--- Bilgi satırları
-local Info1 = Instance.new("TextLabel")
-Info1.Parent = Frame
-Info1.Size = UDim2.new(1,0,0,22)
-Info1.Position = UDim2.new(0,0,0,40)
-Info1.BackgroundTransparency = 1
-Info1.Text = "💤 Anti AFK aktif"
-Info1.Font = Enum.Font.SourceSansBold
-Info1.TextSize = 17
-Info1.TextColor3 = Color3.fromRGB(255,255,255)
-Info1.ZIndex = 11
-
-local Info2 = Instance.new("TextLabel")
-Info2.Parent = Frame
-Info2.Size = UDim2.new(1,0,0,22)
-Info2.Position = UDim2.new(0,0,0,62)
-Info2.BackgroundTransparency = 1
-Info2.Text = "💨 Optimize aktif"
-Info2.Font = Enum.Font.SourceSansBold
-Info2.TextSize = 17
-Info2.TextColor3 = Color3.fromRGB(255,255,255)
-Info2.ZIndex = 11
+local Sub1 = Instance.new("TextLabel")
+Sub1.Parent = Frame
+Sub1.Size = UDim2.new(1,0,0,22)
+Sub1.Position = UDim2.new(0,0,0,35)
+Sub1.BackgroundTransparency = 1
+Sub1.Text = "💨 Anti Lag aktif!"
+Sub1.Font = Enum.Font.SourceSansBold
+Sub1.TextSize = 18
+Sub1.TextColor3 = Color3.fromRGB(255,255,255)
+Sub1.ZIndex = 11
 
 local RejoinLabel = Instance.new("TextLabel")
 RejoinLabel.Parent = Frame
 RejoinLabel.Size = UDim2.new(1,0,0,22)
-RejoinLabel.Position = UDim2.new(0,0,0,84)
+RejoinLabel.Position = UDim2.new(0,0,0,60)
 RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "⏳ Server değişimi: hazırlanıyor..."
+RejoinLabel.Text = "⏳ Server değişimi hazırlanıyor..."
 RejoinLabel.Font = Enum.Font.SourceSansBold
-RejoinLabel.TextSize = 16
+RejoinLabel.TextSize = 17
 RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
 RejoinLabel.ZIndex = 11
 
 local NewServerButton = Instance.new("TextButton")
 NewServerButton.Parent = Frame
-NewServerButton.Size = UDim2.new(1,-20,0,35)
-NewServerButton.Position = UDim2.new(0,10,0,110)
-NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
+NewServerButton.Size = UDim2.new(1,-20,0,30)
+NewServerButton.Position = UDim2.new(0,10,0,90)
+NewServerButton.BackgroundColor3 = Color3.fromRGB(0,170,70)
 NewServerButton.Text = "🚀 Yeni Servera Git"
 NewServerButton.TextColor3 = Color3.new(1,1,1)
 NewServerButton.Font = Enum.Font.SourceSansBold
 NewServerButton.TextSize = 18
-NewServerButton.ZIndex = 11
+NewServerButton.ZIndex = 12
 
 local UICorner2 = Instance.new("UICorner")
 UICorner2.Parent = NewServerButton
 
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
-Credit.Size = UDim2.new(1,0,0,15)
-Credit.Position = UDim2.new(0,0,1,-20)
+Credit.Size = UDim2.new(1,-10,0,15)
+Credit.Position = UDim2.new(0,5,1,-20)
 Credit.BackgroundTransparency = 1
 Credit.Text = "by NQHSAN ✨"
 Credit.Font = Enum.Font.SourceSansItalic
 Credit.TextSize = 11
 Credit.TextColor3 = Color3.fromRGB(200,200,200)
-Credit.TextXAlignment = Enum.TextXAlignment.Center
+Credit.TextXAlignment = Enum.TextXAlignment.Left
 Credit.ZIndex = 11
 
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-	Position = UDim2.new(1,-290,1,-160)
+	Position = UDim2.new(1,-290,1,-140)
 }):Play()
 
--------------------------------------------------------------------
--- 🛰️ Yeni Servera Git Butonu
--------------------------------------------------------------------
 NewServerButton.MouseButton1Click:Connect(function()
 	NewServerButton.Text = "🔍 Server aranıyor..."
 	NewServerButton.BackgroundColor3 = Color3.fromRGB(255,165,0)
@@ -195,7 +180,7 @@ NewServerButton.MouseButton1Click:Connect(function()
 		NewServerButton.Text = "❌ Uygun server yok!"
 		NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
 		task.wait(2)
-		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
+		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,170,70)
 		NewServerButton.Text = "🚀 Yeni Servera Git"
 	end
 end)
@@ -229,16 +214,7 @@ CoinCollected.OnClientEvent:Connect(function(_,current,max)
 end)
 
 -------------------------------------------------------------------
--- 🚀 AUTO LOAD FARM SCRIPT
--------------------------------------------------------------------
-task.spawn(function()
-	pcall(function()
-		loadstring(game:HttpGet('https://raw.githubusercontent.com/nahsqn/mm2-farm/refs/heads/main/test'))()
-	end)
-end)
-
--------------------------------------------------------------------
--- ⏱️ ZAMANLAYICI (rejoin yerine butona tıklasın)
+-- ⏱️ TIMER (Rejoin yerine otomatik buton tıklama)
 -------------------------------------------------------------------
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
@@ -246,39 +222,11 @@ task.spawn(function()
 		local h = math.floor(remaining/3600)
 		local m = math.floor((remaining%3600)/60)
 		local s = remaining % 60
-		RejoinLabel.Text = string.format("⏳ Server değişimi: %02dh %02dm %02ds", h, m, s)
-		task.wait(1)
-		remaining -= 1
+		RejoinLabel.Text = string.format("⏳ Yeni servera geçiş: %02dh %02dm %02ds", h, m, s)
+		task.wait(REFRESH_DELAY)
+		remaining -= REFRESH_DELAY
 	end
-	RejoinLabel.Text = "🚀 Süre doldu! Yeni servera geçiliyor..."
+	RejoinLabel.Text = "🚀 Süre doldu, yeni servera geçiliyor..."
 	task.wait(1)
-	NewServerButton:Activate()
-end)
-
--------------------------------------------------------------------
--- ⚙️ LAG KONTROL (FPS düşükse buton tıklasın)
--------------------------------------------------------------------
-local lagCounter = 0
-local lastFrame = tick()
-local lagStartTime = nil
-
-RunService.Heartbeat:Connect(function()
-	local now = tick()
-	local fps = 1 / (now - lastFrame)
-	lastFrame = now
-
-	if fps < LAG_FPS then
-		if not lagStartTime then lagStartTime = now end
-		lagCounter = now - lagStartTime
-		RejoinLabel.Text = string.format("⚠️ FPS düşük (%.0f sn)...", lagCounter)
-	else
-		lagCounter = 0
-		lagStartTime = nil
-	end
-
-	if lagCounter >= LAG_TIME then
-		RejoinLabel.Text = "⚠️ Uzun lag! Yeni server aranıyor..."
-		task.wait(1)
-		NewServerButton:Activate()
-	end
+	NewServerButton:Activate() -- otomatik tıklama
 end)
