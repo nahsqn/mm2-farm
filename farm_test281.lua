@@ -1,5 +1,6 @@
 -------------------------------------------------------------------
--- 🍬 FULL SYSTEM BY NQHSAN (No Rejoin | Auto Click "Yeni Servera Git" | 2.5s Refresh)
+-- 🍬 FULL SYSTEM BY NQHSAN
+-- AUTO RESET + ANTI AFK + ANTI LAG + AUTO REJOIN + NEW SERVER + AUTO LOAD + LOW PING SWITCH + FPS MONITOR
 -------------------------------------------------------------------
 
 local Players = game:GetService("Players")
@@ -11,12 +12,12 @@ local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
 
 local autoResetEnabled = true
 local resetting = false
 local bag_full = false
-local REJOIN_INTERVAL = 140000 -- süre dolunca butona tıklayacak
-local REFRESH_DELAY = 2.5 -- süre yenileme hızı
+local REJOIN_INTERVAL = 140000
 local LAG_FPS = 34
 local LAG_TIME = 15
 
@@ -48,7 +49,7 @@ end
 optimizePerformance()
 
 -------------------------------------------------------------------
--- 🌐 SERVER LIST (Düşük ping tahmini)
+-- 🌐 SERVER LIST (DÜŞÜK PING)
 -------------------------------------------------------------------
 local function getServerList()
 	local servers = {}
@@ -56,9 +57,7 @@ local function getServerList()
 	local success, response
 	repeat
 		success, response = pcall(function()
-			return HttpService:JSONDecode(game:HttpGet(
-				"https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")
-			))
+			return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")))
 		end)
 		if success and response and response.data then
 			for _, server in pairs(response.data) do
@@ -70,7 +69,7 @@ local function getServerList()
 		else
 			break
 		end
-		task.wait(1)
+		task.wait(1.5)
 	until cursor == "" or not success
 	table.sort(servers, function(a,b)
 		return (a.maxPlayers - a.playing) > (b.maxPlayers - b.playing)
@@ -83,16 +82,15 @@ end
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SystemStatus_Panel"
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
 Frame.Parent = ScreenGui
-Frame.Size = UDim2.new(0,270,0,150)
+Frame.Size = UDim2.new(0,270,0,170)
 Frame.Position = UDim2.new(1,-290,1,140)
-Frame.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 Frame.BorderSizePixel = 0
-Frame.BackgroundTransparency = 0.1
+Frame.BackgroundTransparency = 0.15
 Frame.ZIndex = 10
 
 local UICorner = Instance.new("UICorner")
@@ -102,18 +100,17 @@ UICorner.Parent = Frame
 local Stroke = Instance.new("UIStroke")
 Stroke.Parent = Frame
 Stroke.Thickness = 2
-Stroke.Color = Color3.fromRGB(0,180,70)
+Stroke.Color = Color3.fromRGB(0,150,50)
 
 local Title = Instance.new("TextLabel")
 Title.Parent = Frame
 Title.Size = UDim2.new(1,0,0,25)
 Title.Position = UDim2.new(0,0,0,8)
 Title.BackgroundTransparency = 1
-Title.Text = "🟢 Anti AFK aktif!"
+Title.Text = "🟢 Anti AFK açık!"
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.TextColor3 = Color3.fromRGB(255,255,255)
-Title.ZIndex = 11
 
 local Sub1 = Instance.new("TextLabel")
 Sub1.Parent = Frame
@@ -124,32 +121,39 @@ Sub1.Text = "💨 Anti Lag aktif!"
 Sub1.Font = Enum.Font.SourceSansBold
 Sub1.TextSize = 18
 Sub1.TextColor3 = Color3.fromRGB(255,255,255)
-Sub1.ZIndex = 11
 
 local RejoinLabel = Instance.new("TextLabel")
 RejoinLabel.Parent = Frame
 RejoinLabel.Size = UDim2.new(1,0,0,22)
 RejoinLabel.Position = UDim2.new(0,0,0,60)
 RejoinLabel.BackgroundTransparency = 1
-RejoinLabel.Text = "⏳ Server değişimi hazırlanıyor..."
+RejoinLabel.Text = "⏳ Rejoin: hazırlanıyor..."
 RejoinLabel.Font = Enum.Font.SourceSansBold
 RejoinLabel.TextSize = 17
 RejoinLabel.TextColor3 = Color3.fromRGB(255,215,0)
-RejoinLabel.ZIndex = 11
 
 local NewServerButton = Instance.new("TextButton")
 NewServerButton.Parent = Frame
 NewServerButton.Size = UDim2.new(1,-20,0,30)
 NewServerButton.Position = UDim2.new(0,10,0,90)
-NewServerButton.BackgroundColor3 = Color3.fromRGB(0,170,70)
+NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
 NewServerButton.Text = "🚀 Yeni Servera Git"
 NewServerButton.TextColor3 = Color3.new(1,1,1)
 NewServerButton.Font = Enum.Font.SourceSansBold
 NewServerButton.TextSize = 18
-NewServerButton.ZIndex = 12
 
 local UICorner2 = Instance.new("UICorner")
 UICorner2.Parent = NewServerButton
+
+local FPSLabel = Instance.new("TextLabel")
+FPSLabel.Parent = Frame
+FPSLabel.Size = UDim2.new(1,0,0,20)
+FPSLabel.Position = UDim2.new(0,0,0,125)
+FPSLabel.BackgroundTransparency = 1
+FPSLabel.Text = "🎯 FPS: hesaplanıyor..."
+FPSLabel.Font = Enum.Font.SourceSansBold
+FPSLabel.TextSize = 16
+FPSLabel.TextColor3 = Color3.fromRGB(100,255,100)
 
 local Credit = Instance.new("TextLabel")
 Credit.Parent = Frame
@@ -161,7 +165,6 @@ Credit.Font = Enum.Font.SourceSansItalic
 Credit.TextSize = 11
 Credit.TextColor3 = Color3.fromRGB(200,200,200)
 Credit.TextXAlignment = Enum.TextXAlignment.Left
-Credit.ZIndex = 11
 
 TweenService:Create(Frame,TweenInfo.new(1.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
 	Position = UDim2.new(1,-290,1,-140)
@@ -180,7 +183,7 @@ NewServerButton.MouseButton1Click:Connect(function()
 		NewServerButton.Text = "❌ Uygun server yok!"
 		NewServerButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
 		task.wait(2)
-		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,170,70)
+		NewServerButton.BackgroundColor3 = Color3.fromRGB(0,150,50)
 		NewServerButton.Text = "🚀 Yeni Servera Git"
 	end
 end)
@@ -214,19 +217,73 @@ CoinCollected.OnClientEvent:Connect(function(_,current,max)
 end)
 
 -------------------------------------------------------------------
--- ⏱️ TIMER (Rejoin yerine otomatik buton tıklama)
+-- 🚀 AUTO LOAD FARM SCRIPT
 -------------------------------------------------------------------
+task.spawn(function()
+	pcall(function()
+		loadstring(game:HttpGet('https://raw.githubusercontent.com/nahsqn/mm2-farm/refs/heads/main/test'))()
+	end)
+end)
+
+-------------------------------------------------------------------
+-- ⏱️ AUTO REJOIN + LAG SWITCH
+-------------------------------------------------------------------
+local function rejoinToLowPingServer()
+	local servers = getServerList()
+	if #servers > 0 then
+		local newServer = servers[1]
+		TeleportService:TeleportToPlaceInstance(game.PlaceId,newServer.id,Player)
+	else
+		TeleportService:Teleport(game.PlaceId,Player)
+	end
+end
+
+-- Zamanlı Rejoin
 task.spawn(function()
 	local remaining = REJOIN_INTERVAL
 	while remaining > 0 do
 		local h = math.floor(remaining/3600)
 		local m = math.floor((remaining%3600)/60)
 		local s = remaining % 60
-		RejoinLabel.Text = string.format("⏳ Yeni servera geçiş: %02dh %02dm %02ds", h, m, s)
-		task.wait(REFRESH_DELAY)
-		remaining -= REFRESH_DELAY
+		RejoinLabel.Text = string.format("⏳ Rejoin: %02dh %02dm %02ds kaldı", h, m, s)
+		task.wait(1)
+		remaining -= 1
 	end
-	RejoinLabel.Text = "🚀 Süre doldu, yeni servera geçiliyor..."
-	task.wait(1)
-	NewServerButton:Activate() -- otomatik tıklama
+	RejoinLabel.Text = "🔁 Yeni sunucu aranıyor..."
+	task.wait(2)
+	rejoinToLowPingServer()
+end)
+
+-------------------------------------------------------------------
+-- ⚡ FPS TAKİP (2.5 saniyede yenilenir) + LAG ALGILAMA
+-------------------------------------------------------------------
+local lastFrame = tick()
+local lastUpdate = tick()
+local lagCounter = 0
+local lagStartTime = nil
+
+RunService.Heartbeat:Connect(function()
+	local now = tick()
+	local fps = 1 / (now - lastFrame)
+	lastFrame = now
+
+	if tick() - lastUpdate >= 2.5 then
+		FPSLabel.Text = string.format("🎯 FPS: %.0f", fps)
+		lastUpdate = tick()
+	end
+
+	if fps < LAG_FPS then
+		if not lagStartTime then lagStartTime = now end
+		lagCounter = now - lagStartTime
+		RejoinLabel.Text = string.format("⚠️ Düşük FPS tespit edildi! %.0f sn lag...", lagCounter)
+	else
+		lagCounter = 0
+		lagStartTime = nil
+	end
+
+	if lagCounter >= LAG_TIME then
+		RejoinLabel.Text = "⚠️ Yeni sunucu aranıyor..."
+		task.wait(2)
+		rejoinToLowPingServer()
+	end
 end)
