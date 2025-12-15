@@ -1,0 +1,160 @@
+--////////////////////////////////////////////////////
+--  SERVER HOP UI - FULL SÜRÜM
+--  by nqhsan
+--////////////////////////////////////////////////////
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local CurrentJobId = game.JobId
+
+--////////////////////////////////////////////////////
+--  UI
+--////////////////////////////////////////////////////
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ServerHop_UI"
+gui.ResetOnSpawn = false
+gui.Parent = game:GetService("CoreGui")
+
+-- ANA FRAME (SAĞ ALT + DRAG)
+local frame = Instance.new("Frame")
+frame.Parent = gui
+frame.Size = UDim2.new(0, 280, 0, 110)
+frame.AnchorPoint = Vector2.new(1, 1)
+frame.Position = UDim2.new(1, -20, 1, -20)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.BackgroundTransparency = 0.05
+frame.BorderSizePixel = 0
+frame.Active = true
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 14)
+frameCorner.Parent = frame
+
+-- BUTON
+local button = Instance.new("TextButton")
+button.Parent = frame
+button.Size = UDim2.new(1, -20, 0, 55)
+button.Position = UDim2.new(0, 10, 0, 10)
+button.BackgroundColor3 = Color3.fromRGB(25,25,25)
+button.Text = "🚀 BOŞ SERVERE GİT"
+button.TextColor3 = Color3.fromRGB(0,170,255)
+button.TextScaled = true
+button.Font = Enum.Font.GothamBold
+button.BorderSizePixel = 0
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 12)
+buttonCorner.Parent = button
+
+-- CREDIT
+local credit = Instance.new("TextLabel")
+credit.Parent = frame
+credit.Size = UDim2.new(1, -20, 0, 20)
+credit.Position = UDim2.new(0, 10, 1, -25)
+credit.BackgroundTransparency = 1
+credit.Text = "by nqhsan"
+credit.TextColor3 = Color3.fromRGB(160,160,160)
+credit.TextScaled = true
+credit.Font = Enum.Font.Gotham
+credit.TextXAlignment = Enum.TextXAlignment.Right
+
+--////////////////////////////////////////////////////
+--  DRAG SİSTEMİ
+--////////////////////////////////////////////////////
+
+local dragging = false
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+--////////////////////////////////////////////////////
+--  BOŞ SERVER BULMA (DOLUYSA ATLAR)
+--////////////////////////////////////////////////////
+
+local function GetEmptyServer()
+	local cursor = ""
+
+	for _ = 1, 10 do -- 10 sayfaya kadar dener
+		local url =
+			"https://games.roblox.com/v1/games/"..PlaceId..
+			"/servers/Public?sortOrder=Asc&limit=100"..
+			(cursor ~= "" and "&cursor="..cursor or "")
+
+		local response = http_request({
+			Url = url,
+			Method = "GET"
+		})
+
+		local data = HttpService:JSONDecode(response.Body)
+
+		for _, server in ipairs(data.data) do
+			if server.playing < server.maxPlayers
+			and server.id ~= CurrentJobId then
+				return server.id
+			end
+		end
+
+		if data.nextPageCursor then
+			cursor = data.nextPageCursor
+		else
+			break
+		end
+	end
+end
+
+--////////////////////////////////////////////////////
+--  BUTON TIKLAMA
+--////////////////////////////////////////////////////
+
+local busy = false
+
+button.MouseButton1Click:Connect(function()
+	if busy then return end
+	busy = true
+
+	button.Text = "🔍 SERVER ARANIYOR..."
+
+	local serverId = GetEmptyServer()
+
+	if serverId then
+		button.Text = "🚀 TELEPORT EDİLİYOR"
+		task.wait(0.5)
+		TeleportService:TeleportToPlaceInstance(PlaceId, serverId, Player)
+	else
+		button.Text = "❌ BOŞ SERVER YOK"
+		task.wait(2)
+		button.Text = "🚀 BOŞ SERVERE GİT"
+		busy = false
+	end
+end)
