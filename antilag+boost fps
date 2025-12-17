@@ -1,0 +1,125 @@
+-- Roblox'ta Her Şeyi Şeffaf Yapan, Tüm Efektleri Şeffaf Yapan ve Gökyüzünü Düz Siyah Yapan Yerel Komut Dosyası
+
+local GORUNMEZLIK_SEVIYESI = 1 -- Tamamen şeffaf/görünmez
+local workspace = game:GetService("Workspace")
+local lighting = game:GetService("Lighting")
+
+-- 1. Şeffaflık Özellikleri
+local OZELLIKLER = {
+    "Transparency", "BackgroundTransparency", "ImageTransparency", "TextTransparency", "Opacity"
+}
+
+-- 2. Efekt Sınıfları (Şeffaflığı Ayarlanacaklar)
+local EFEKT_SINIFLARI = {
+    "ParticleEmitter",       -- Parçacıklar (Duman, kıvılcım, **Ateş parçacıkları**)
+    "Smoke",
+    "Fire",                  -- Ateş efekti
+    "Sparkles",
+    "Trail",
+    "PointLight",            -- Işık kaynakları
+    "SpotLight",
+    "SurfaceLight",
+    "BlurEffect",
+    "ColorCorrectionEffect", 
+    "BloomEffect",
+    "DepthOfFieldEffect",
+    "Atmosphere",
+    "Fog"
+}
+
+-- Oyun dünyasındaki tüm nesneleri yinelemeli olarak gezen fonksiyon
+local function guncelleGorseller(nesne)
+    local nesneSinifi = nesne.ClassName
+
+    -- A) Efektleri Kontrol Etme ve Şeffaflaştırma
+    local efektMi = false
+    for _, sinif in ipairs(EFEKT_SINIFLARI) do
+        if nesneSinifi == sinif then
+            efektMi = true
+            break
+        end
+    end
+
+    if efektMi then
+        -- 1. Genel şeffaflık ayarı
+        pcall(function()
+            nesne.Transparency = GORUNMEZLIK_SEVIYESI
+        end)
+        
+        -- 2. ***ATEŞ VE PARÇACIKLAR İÇİN ÖZEL AYARLAR***
+        if nesne:IsA("Fire") then
+             -- Ateşin görünmez olması için ikincil ayarlar
+             pcall(function() nesne.Heat = 0 end)    -- Isı yayılımını sıfırla
+             pcall(function() nesne.Size = 0 end)    -- Boyutunu sıfırla (görünmez yapar)
+             pcall(function() nesne.SecondarySize = 0 end)
+        
+        elseif nesne:IsA("ParticleEmitter") then
+             -- Parçacıkların görünmez olması için temel ayar
+             pcall(function() nesne.Enabled = false end) -- Efektif olarak parçacık yaymayı durdur
+             pcall(function() nesne.Rate = 0 end)        -- Yayılma hızını sıfırla
+             
+        elseif nesne:IsA("Light") then
+             pcall(function() nesne.Range = 0 end)
+             pcall(function() nesne.Brightness = 0 end)
+             
+        elseif nesne:IsA("BlurEffect") then
+            pcall(function() nesne.Size = 0 end)
+        end
+    end
+
+    -- B) Tüm Nesnelerin Şeffaflığını Ayarlama (Parçalar, GUI'ler vb.)
+    for _, ozellikAdi in ipairs(OZELLIKLER) do
+        local basarili, deger = pcall(function()
+            return nesne[ozellikAdi]
+        end)
+
+        if basarili and typeof(deger) == "number" then
+            pcall(function()
+                nesne[ozellikAdi] = GORUNMEZLIK_SEVIYESI
+            end)
+        end
+    end
+
+    -- C) Çocuk nesneleri de yinelemeli olarak işle
+    for _, cocuk in ipairs(nesne:GetChildren()) do
+        guncelleGorseller(cocuk)
+    end
+end
+
+-- 3. Gökyüzünü Düz Siyah Yapma ve Ay'ı Kaldırma (Önceki koddan)
+local function guncelleGokyuzuSiyah()
+    if lighting:FindFirstChildOfClass("Sky") then
+        lighting:FindFirstChildOfClass("Sky"):Destroy()
+    end
+    if lighting:FindFirstChildOfClass("Atmosphere") then
+        lighting:FindFirstChildOfClass("Atmosphere"):Destroy()
+    end
+    lighting.Ambient = Color3.new(0, 0, 0)
+    lighting.OutdoorAmbient = Color3.new(0, 0, 0)
+    lighting.TimeOfDay = "00:00:00"
+    lighting.Brightness = 0
+    lighting.FogEnd = 100000 
+    lighting.FogColor = Color3.new(0, 0, 0) 
+end
+
+-- Kodun ana çalıştırma kısmı
+guncelleGokyuzuSiyah()
+
+-- Workspace ve Lighting servislerini işle
+guncelleGorseller(workspace)
+guncelleGorseller(lighting)
+
+-- Sonradan eklenen yeni nesnelerin de sürekli olarak işlenmesini sağla
+workspace.DescendantAdded:Connect(function(yeniNesne)
+    task.spawn(function()
+        guncelleGorseller(yeniNesne)
+    end)
+end)
+
+lighting.DescendantAdded:Connect(function(yeniNesne)
+    task.spawn(function()
+        guncelleGorseller(yeniNesne)
+    end)
+end)
+
+print("Tüm görsel filtreler güncellendi: Ateş ve Parçacıklar Şeffaf yapıldı.")
