@@ -1,87 +1,97 @@
---////////////////////////////////////////////////////
---  GLOBAL ANTI-AFK + MODERN UI (SAĞ ALT)
---  YAPIMCI: WESTGO
---////////////////////////////////////////////////////
+-- Westgo Anti-AFK UI (FPS Temalı)
+-- Tasarım: Turuncu Neon & Sürüklenebilir
 
 local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
 local Player = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
---////////////////////////////////////////////////////
---  ANTI AFK SİSTEMİ
---////////////////////////////////////////////////////
+-- // Eski UI temizliği
+if CoreGui:FindFirstChild("WestgoAntiAFK_Theme") then
+    CoreGui.WestgoAntiAFK_Theme:Destroy()
+end
 
+-- // Ayar
+_G.AntiAFKActive = true
+
+-- // UI Oluşturma
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WestgoAntiAFK_Theme"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local Container = Instance.new("Frame")
+Container.Name = "MainFrame"
+Container.Parent = ScreenGui
+Container.Size = UDim2.new(0, 130, 0, 45) -- FPS Göstergesi ile aynı boyut
+Container.Position = UDim2.new(0, 20, 1, -115) -- FPS göstergesinin tam üstü
+Container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Container.BackgroundTransparency = 0.3
+Container.Active = true
+
+local Corner = Instance.new("UICorner", Container)
+Corner.CornerRadius = UDim.new(0, 8)
+
+local Stroke = Instance.new("UIStroke", Container)
+Stroke.Color = Color3.fromRGB(255, 120, 0) -- FPS Göstergesi ile aynı Turuncu
+Stroke.Thickness = 1.5
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = Container
+StatusLabel.Size = UDim2.new(1, 0, 1, 0)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 13
+StatusLabel.TextColor3 = Color3.new(1, 1, 1)
+StatusLabel.Text = "Anti-AFK\n[AKTİF]"
+
+-- // Anti-AFK Mantığı
 Player.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end)
-
---////////////////////////////////////////////////////
---  MODERN UI OLUŞTURMA
---////////////////////////////////////////////////////
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "Westgo_AntiAFK"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true -- Ekranın en altına tam yanaşması için
-gui.Parent = game:GetService("CoreGui")
-
--- Ana Panel (Sağ Alt Konum)
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Parent = gui
-mainFrame.Size = UDim2.new(0, 220, 0, 80)
-mainFrame.Position = UDim2.new(1, -240, 1, -100) -- Sağ alttan boşluk bırakır
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-mainFrame.BackgroundTransparency = 0.2
-mainFrame.BorderSizePixel = 0
-
--- Köşe Yuvarlatma
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 15)
-mainCorner.Parent = mainFrame
-
--- Kenarlık (Stroke) Efekti
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(0, 255, 150)
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-stroke.Parent = mainFrame
-
--- Durum Yazısı
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Parent = mainFrame
-statusLabel.Size = UDim2.new(1, 0, 0.6, 0)
-statusLabel.Position = UDim2.new(0, 0, 0, 5)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🟢 ANTI-AFK ACTIVE"
-statusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextSize = 16
-statusLabel.TextWrapped = true
-
--- Yapımcı İmzası (By Westgo)
-local creditLabel = Instance.new("TextLabel")
-creditLabel.Parent = mainFrame
-creditLabel.Size = UDim2.new(1, 0, 0.3, 0)
-creditLabel.Position = UDim2.new(0, 0, 0.6, 0)
-creditLabel.BackgroundTransparency = 1
-creditLabel.Text = "Yapımcı: By Westgo"
-creditLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-creditLabel.Font = Enum.Font.GothamMedium
-creditLabel.TextSize = 12
-creditLabel.TextTransparency = 0.4
-
----////////////////////////////////////////////////////
---  KONTROLLER VE OTOMASYON
----////////////////////////////////////////////////////
-
--- Karakter ölünce UI gitmesini engeller
-Player.CharacterAdded:Connect(function()
-    if not gui.Parent then
-        gui.Parent = game:GetService("CoreGui")
+    if _G.AntiAFKActive then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+        
+        -- Engelleme anında yazı rengi anlık değişir
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+        task.wait(0.5)
+        StatusLabel.TextColor3 = Color3.new(1, 1, 1)
     end
 end)
 
-print("WESTGO ANTI-AFK: Sistem sağ altta aktif edildi.")
+-- // Gelişmiş Sürükleme Sistemi
+local dragging, dragInput, dragStart, startPos
+Container.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Container.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Container.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+
+-- // Aç/Kapat (Üzerine tıklayınca)
+Container.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then -- Sağ Tıkla Kapat/Aç
+        _G.AntiAFKActive = not _G.AntiAFKActive
+        if _G.AntiAFKActive then
+            StatusLabel.Text = "Anti-AFK\n[AKTİF]"
+            Stroke.Color = Color3.fromRGB(255, 120, 0)
+        else
+            StatusLabel.Text = "Anti-AFK\n[KAPALI]"
+            Stroke.Color = Color3.fromRGB(100, 100, 100) -- Kapalıyken gri renk
+        end
+    end
+end)
+
+print("westgo Anti-AFK: FPS Göstergesi temasıyla uyumlu hale getirildi!")
