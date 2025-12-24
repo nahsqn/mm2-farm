@@ -1,0 +1,105 @@
+-- Westgo Akıcı & Sürüklenebilir Stats
+-- Konum: Sol Alt
+
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- // Eski varsa temizle
+if CoreGui:FindFirstChild("WestgoMovableStats") then
+    CoreGui.WestgoMovableStats:Destroy()
+end
+
+-- // UI Oluşturma
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WestgoMovableStats"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local Container = Instance.new("Frame")
+Container.Name = "MainFrame"
+Container.Parent = ScreenGui
+Container.Size = UDim2.new(0, 130, 0, 45)
+Container.Position = UDim2.new(0, 20, 1, -65) -- Sol Alt Başlangıç
+Container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Container.BackgroundTransparency = 0.3
+Container.Active = true
+Container.Draggable = true -- Basit sürükleme aktif
+
+local Corner = Instance.new("UICorner", Container)
+Corner.CornerRadius = UDim.new(0, 8)
+
+local Stroke = Instance.new("UIStroke", Container)
+Stroke.Color = Color3.fromRGB(255, 120, 0)
+Stroke.Thickness = 1.5
+
+local StatLabel = Instance.new("TextLabel")
+StatLabel.Parent = Container
+StatLabel.Size = UDim2.new(1, 0, 1, 0)
+StatLabel.BackgroundTransparency = 1
+StatLabel.Font = Enum.Font.GothamBold
+StatLabel.TextSize = 14
+StatLabel.TextColor3 = Color3.new(1, 1, 1)
+StatLabel.Text = "Yükleniyor..."
+
+-- // Gelişmiş Sürükleme Mantığı (Daha akıcı olması için)
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+	local delta = input.Position - dragStart
+	Container.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Container.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = Container.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+
+Container.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then update(input) end
+end)
+
+-- // Akıcı Veri Güncelleme Mantığı
+local fpsUpdateInterval = 0.6 -- 0.6 saniyede bir sakin güncelleme
+local nextUpdate = 0
+local lastTick = tick()
+local fpsSum = 0
+local fpsCount = 0
+
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    local diff = now - lastTick
+    
+    if diff > 0 then
+        fpsSum = fpsSum + (1 / diff)
+        fpsCount = fpsCount + 1
+    end
+    lastTick = now
+
+    if now >= nextUpdate then
+        local avgFps = fpsCount > 0 and math.floor(fpsSum / fpsCount) or 0
+        local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        
+        StatLabel.Text = string.format("FPS: %d\nPing: %d ms", avgFps, ping)
+        
+        -- Sıfırlama
+        fpsSum = 0
+        fpsCount = 0
+        nextUpdate = now + fpsUpdateInterval
+    end
+end)
+
+print("westgo Movable Stats: Sol altta başlatıldı, sürüklenebilir!")
