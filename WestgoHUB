@@ -1,0 +1,494 @@
+-- Murder Mystery 2 | Halloween 
+-- Yapımcı & Düzenleyen: westgo (Sayaç & Zaman Eklenmiş Versiyon)
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- // Ana Ayarlar
+local settings = {
+    autoFarm = false,
+    autoReset = false,
+    farmSpeed = 23,
+    farming = false,
+    bagFull = false,
+    resetting = false,
+    startPos = nil,
+    totalCoins = 0, -- Toplam toplanan coin
+    startTime = os.time() -- Başlangıç zamanı
+}
+
+-- // UI Tasarımı
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "WestgoHubV2"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 500, 0, 350) -- Boyutu biraz artırdım istatistikler için
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+local Stroke = Instance.new("UIStroke", MainFrame)
+Stroke.Color = Color3.fromRGB(255, 120, 0)
+Stroke.Thickness = 2
+
+-- // Başlık
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Text = "WESTGO MM2 HUB"
+Title.TextColor3 = Color3.fromRGB(255, 120, 0)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundTransparency = 1
+
+-- // Sekme Butonları
+local TabContainer = Instance.new("Frame", MainFrame)
+TabContainer.Size = UDim2.new(0, 120, 1, -60)
+TabContainer.Position = UDim2.new(0, 10, 0, 50)
+TabContainer.BackgroundTransparency = 1
+
+local MainBtn = Instance.new("TextButton", TabContainer)
+MainBtn.Size = UDim2.new(1, 0, 0, 35)
+MainBtn.Text = "Ana Menü"
+MainBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+MainBtn.TextColor3 = Color3.new(1,1,1)
+MainBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", MainBtn)
+
+local MiscBtn = Instance.new("TextButton", TabContainer)
+MiscBtn.Size = UDim2.new(1, 0, 0, 35)
+MiscBtn.Position = UDim2.new(0, 0, 0, 45)
+MiscBtn.Text = "Misc (Ek)"
+MiscBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MiscBtn.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+MiscBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", MiscBtn)
+
+-- // İçerik Alanları
+local Content = Instance.new("Frame", MainFrame)
+Content.Size = UDim2.new(1, -150, 1, -60)
+Content.Position = UDim2.new(0, 140, 0, 50)
+Content.BackgroundTransparency = 1
+
+local MainPage = Instance.new("ScrollingFrame", Content)
+MainPage.Size = UDim2.new(1, 0, 1, 0)
+MainPage.BackgroundTransparency = 1
+MainPage.CanvasSize = UDim2.new(0,0,1.2,0)
+MainPage.ScrollBarThickness = 2
+
+local MiscPage = Instance.new("ScrollingFrame", Content)
+MiscPage.Size = UDim2.new(1, 0, 1, 0)
+MiscPage.BackgroundTransparency = 1
+MiscPage.Visible = false
+MiscPage.ScrollBarThickness = 2
+
+-------------------------------------------------------------------
+-- 📊 İSTATİSTİK PANELİ (YENİ)
+-------------------------------------------------------------------
+local StatsFrame = Instance.new("Frame", MainPage)
+StatsFrame.Size = UDim2.new(0, 200, 0, 70)
+StatsFrame.Position = UDim2.new(0, 0, 0, 140)
+StatsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Instance.new("UICorner", StatsFrame)
+
+local CoinLabel = Instance.new("TextLabel", StatsFrame)
+CoinLabel.Size = UDim2.new(1, -10, 0, 30)
+CoinLabel.Position = UDim2.new(0, 10, 0, 5)
+CoinLabel.Text = "Toplam Coin: 0"
+CoinLabel.TextColor3 = Color3.new(1, 0.8, 0)
+CoinLabel.Font = Enum.Font.GothamBold
+CoinLabel.TextSize = 14
+CoinLabel.TextXAlignment = Enum.TextXAlignment.Left
+CoinLabel.BackgroundTransparency = 1
+
+local TimeLabel = Instance.new("TextLabel", StatsFrame)
+TimeLabel.Size = UDim2.new(1, -10, 0, 30)
+TimeLabel.Position = UDim2.new(0, 10, 0, 35)
+TimeLabel.Text = "Süre: 00:00:00"
+TimeLabel.TextColor3 = Color3.new(1, 1, 1)
+TimeLabel.Font = Enum.Font.GothamBold
+TimeLabel.TextSize = 14
+TimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+TimeLabel.BackgroundTransparency = 1
+
+-- Zaman Formatlama Fonksiyonu
+local function updateTime()
+    local diff = os.difftime(os.time(), settings.startTime)
+    local hours = math.floor(diff / 3600)
+    local mins = math.floor((diff % 3600) / 60)
+    local secs = diff % 60
+    TimeLabel.Text = string.format("Süre: %02d:%02d:%02d", hours, mins, secs)
+end
+
+task.spawn(function()
+    while task.wait(1) do updateTime() end
+end)
+
+-------------------------------------------------------------------
+-- 🛠️ ANA MENÜ ÖGELERİ
+-------------------------------------------------------------------
+
+local FarmToggle = Instance.new("TextButton", MainPage)
+FarmToggle.Size = UDim2.new(0, 200, 0, 40)
+FarmToggle.Position = UDim2.new(0, 0, 0, 10)
+FarmToggle.Text = "Auto Farm: KAPALI"
+FarmToggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
+FarmToggle.TextColor3 = Color3.new(1,1,1)
+FarmToggle.Font = Enum.Font.GothamBold
+Instance.new("UICorner", FarmToggle)
+
+FarmToggle.MouseButton1Click:Connect(function()
+    settings.autoFarm = not settings.autoFarm
+    FarmToggle.Text = settings.autoFarm and "Auto Farm: AÇIK" or "Auto Farm: KAPALI"
+    FarmToggle.TextColor3 = settings.autoFarm and Color3.new(0,1,0) or Color3.new(1,1,1)
+end)
+
+local SpeedLabel = Instance.new("TextLabel", MainPage)
+SpeedLabel.Size = UDim2.new(0, 200, 0, 30)
+SpeedLabel.Position = UDim2.new(0, 0, 0, 60)
+SpeedLabel.Text = "Farm Hızı (Örn: 22)"
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Font = Enum.Font.GothamMedium
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local SpeedInput = Instance.new("TextBox", MainPage)
+SpeedInput.Size = UDim2.new(0, 100, 0, 35)
+SpeedInput.Position = UDim2.new(0, 0, 0, 90)
+SpeedInput.Text = tostring(settings.farmSpeed)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(35,35,35)
+SpeedInput.TextColor3 = Color3.fromRGB(255, 120, 0)
+SpeedInput.Font = Enum.Font.GothamBold
+Instance.new("UICorner", SpeedInput)
+
+SpeedInput.FocusLost:Connect(function()
+    local val = tonumber(SpeedInput.Text)
+    if val then
+        settings.farmSpeed = math.clamp(val, 1, 50)
+        SpeedInput.Text = tostring(settings.farmSpeed)
+    else
+        SpeedInput.Text = tostring(settings.farmSpeed)
+    end
+end)
+
+-- Sekme Değiştirme
+MainBtn.MouseButton1Click:Connect(function()
+    MainPage.Visible = true; MiscPage.Visible = false
+    MainBtn.BackgroundColor3 = Color3.fromRGB(45,45,45); MiscBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+end)
+
+MiscBtn.MouseButton1Click:Connect(function()
+    MainPage.Visible = false; MiscPage.Visible = true
+    MiscBtn.BackgroundColor3 = Color3.fromRGB(45,45,45); MainBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+end)
+
+-------------------------------------------------------------------
+-- 🔁 SİSTEM MANTIĞI (FARM & RESET)
+-------------------------------------------------------------------
+
+local function getHRP() return Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") end
+
+-- Coin Toplandığında Sayaç Artırma
+ReplicatedStorage.Remotes.Gameplay.CoinCollected.OnClientEvent:Connect(function(_, current, max)
+    settings.totalCoins = settings.totalCoins + 1
+    CoinLabel.Text = "Toplam Coin: " .. tostring(settings.totalCoins)
+
+    if current >= max and settings.autoReset and not settings.resetting then
+        settings.resetting = true
+        settings.bagFull = true
+        
+        local hrp = getHRP()
+        if hrp and settings.startPos then
+            TweenService:Create(hrp, TweenInfo.new(1.5), {CFrame = settings.startPos}):Play()
+            task.wait(1.6)
+        end
+        
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.Health = 0
+        end
+        
+        Player.CharacterAdded:Wait()
+        task.wait(2)
+        settings.resetting = false
+        settings.bagFull = false
+    end
+end)
+
+
+-- Fiziksel çarpışmaları ve düşmeyi engelleyen ayarlar
+local function setupPhysics(hrp)
+    -- Yer çekimini iptal et (Havada asılı kalma)
+    local stabilizer = hrp:FindFirstChild("FarmAnchor") or Instance.new("BodyVelocity")
+    stabilizer.Name = "FarmAnchor"
+    stabilizer.MaxForce = Vector3.new(0, math.huge, 0)
+    stabilizer.Velocity = Vector3.new(0, 0, 0)
+    stabilizer.Parent = hrp
+
+    -- Nesnelerin içinden geçme (Duvarlara/yerlere takılmama)
+    for _, part in ipairs(hrp.Parent:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        task.wait()
+        
+        if settings.autoFarm and settings.farming and not settings.bagFull then
+            local hrp = getHRP()
+            if not hrp then continue end
+            
+            setupPhysics(hrp)
+
+            local target = nil
+            local dist = math.huge
+
+            -- En yakın coin bulma
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v.Name == "CoinContainer" then
+                    for _, coin in ipairs(v:GetChildren()) do
+                        if coin:IsA("BasePart") and coin:FindFirstChild("TouchInterest") then
+                            local d = (hrp.Position - coin.Position).Magnitude
+                            if d < dist then
+                                dist = d
+                                target = coin
+                            end
+                        end
+                    end
+                end
+            end
+
+            if target then
+                -- 1. ADIM: Coinin 4.5 birim altından (yerin altı) oraya doğru git
+                local underPos = target.CFrame * CFrame.new(0, -4.5, 0)
+                local tween = TweenService:Create(
+                    hrp,
+                    TweenInfo.new(dist / settings.farmSpeed, Enum.EasingStyle.Linear),
+                    {CFrame = underPos}
+                )
+                tween:Play()
+
+                -- Coine çok yaklaşana kadar bekle
+                while target and target:FindFirstChild("TouchInterest") and (hrp.Position - underPos.Position).Magnitude > 3 do
+                    task.wait()
+                    if not settings.autoFarm or not settings.farming then break end
+                end
+
+                -- 2. ADIM: Coini alamadıysa YUKARI ÇIK (Işınlan ve Temas et)
+                if target and target:FindFirstChild("TouchInterest") then
+                    tween:Cancel() -- Yatay hareketi durdur
+                    
+                    -- Coinin tam üstüne ışınlan
+                    hrp.CFrame = target.CFrame
+                    
+                    -- Kısa bir süre coinin silinmesini bekle (Maksimum 0.2 saniye)
+                    local timeout = 0
+                    while target and target:FindFirstChild("TouchInterest") and timeout < 0.2 do
+                        task.wait(0.05)
+                        timeout = timeout + 0.05
+                    end
+                end
+            end
+        else
+            -- Kapatıldığında her şeyi normale döndür
+            local hrp = getHRP()
+            if hrp then
+                if hrp:FindFirstChild("FarmAnchor") then hrp.FarmAnchor:Destroy() end
+                for _, part in ipairs(hrp.Parent:GetChildren()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
+            end
+            task.wait(1)
+        end
+    end
+end)
+
+
+-- Diğer Misc Butonları (MiscPage'e ekle)
+local ResetToggle = Instance.new("TextButton", MiscPage)
+ResetToggle.Size = UDim2.new(0, 200, 0, 40)
+ResetToggle.Position = UDim2.new(0, 0, 0, 10)
+ResetToggle.Text = "Çanta Dolunca Reset: KAPALI"
+ResetToggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
+ResetToggle.TextColor3 = Color3.new(1,1,1)
+ResetToggle.Font = Enum.Font.GothamBold
+Instance.new("UICorner", ResetToggle)
+
+ResetToggle.MouseButton1Click:Connect(function()
+    settings.autoReset = not settings.autoReset
+    ResetToggle.Text = settings.autoReset and "Çanta Dolunca Reset: AÇIK" or "Çanta Dolunca Reset: KAPALI"
+    ResetToggle.TextColor3 = settings.autoReset and Color3.new(0,1,0) or Color3.new(1,1,1)
+end)
+
+-- Anti-AFK Butonu
+local AntiAfkBtn = Instance.new("TextButton", MiscPage)
+AntiAfkBtn.Size = UDim2.new(0, 200, 0, 40)
+AntiAfkBtn.Position = UDim2.new(0, 0, 0, 60)
+AntiAfkBtn.Text = "Anti-AFK Aktif Et"
+AntiAfkBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+AntiAfkBtn.TextColor3 = Color3.new(1,1,1)
+AntiAfkBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", AntiAfkBtn)
+
+AntiAfkBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/nahsqn/scripts/refs/heads/main/antiafk"))()
+    end)
+    AntiAfkBtn.Text = "Anti-AFK: AKTİF"
+    AntiAfkBtn.TextColor3 = Color3.new(0,1,0)
+end)
+
+-- çevreleri silme
+local AntiAfkBtn = Instance.new("TextButton", MiscPage)
+AntiAfkBtn.Size = UDim2.new(0, 200, 0, 40)
+AntiAfkBtn.Position = UDim2.new(0, 0, 0, 110)
+AntiAfkBtn.Text = "çevreyi sil"
+AntiAfkBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+AntiAfkBtn.TextColor3 = Color3.new(1,1,1)
+AntiAfkBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", AntiAfkBtn)
+
+AntiAfkBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/nahsqn/scripts/refs/heads/main/antilag%2Bboost%20fps"))()
+    end)
+    AntiAfkBtn.Text = "çevreler silindi"
+    AntiAfkBtn.TextColor3 = Color3.new(0,1,0)
+end)
+
+-- fps ping gostergesi
+local AntiAfkBtn = Instance.new("TextButton", MiscPage)
+AntiAfkBtn.Size = UDim2.new(0, 200, 0, 40)
+AntiAfkBtn.Position = UDim2.new(0, 0, 0, 110)
+AntiAfkBtn.Text = "fps gostergesi"
+AntiAfkBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+AntiAfkBtn.TextColor3 = Color3.new(1,1,1)
+AntiAfkBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", AntiAfkBtn)
+
+AntiAfkBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+     loadstring(game:HttpGet("https://raw.githubusercontent.com/nahsqn/scripts/refs/heads/main/fps*ping"))()
+    end)
+    AntiAfkBtn.Text = "fps göstergesi aktifedildi"
+    AntiAfkBtn.TextColor3 = Color3.new(0,1,0)
+end)
+
+-- çevreleri silme
+local AntiAfkBtn = Instance.new("TextButton", MiscPage)
+AntiAfkBtn.Size = UDim2.new(0, 200, 0, 40)
+AntiAfkBtn.Position = UDim2.new(0, 0, 0, 160)
+AntiAfkBtn.Text = "çevreyi sil"
+AntiAfkBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+AntiAfkBtn.TextColor3 = Color3.new(1,1,1)
+AntiAfkBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", AntiAfkBtn)
+
+AntiAfkBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/nahsqn/scripts/refs/heads/main/antilag%2Bboost%20fps"))()
+    end)
+    AntiAfkBtn.Text = "çevreler silindi"
+    AntiAfkBtn.TextColor3 = Color3.new(0,1,0)
+end)
+
+
+-- // Round Takibi
+ReplicatedStorage.Remotes.Gameplay.RoundStart.OnClientEvent:Connect(function()
+    settings.farming = true
+    task.wait(1)
+    if getHRP() then settings.startPos = getHRP().CFrame end
+end)
+
+ReplicatedStorage.Remotes.Gameplay.RoundEndFade.OnClientEvent:Connect(function()
+    settings.farming = false
+end)
+
+-- // Premium Sürüklenebilir Taç Butonu (VC Yanı Konumlu)
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local OpenBtn = Instance.new("TextButton", ScreenGui)
+OpenBtn.Name = "PremiumCrownBtn"
+OpenBtn.Size = UDim2.new(0, 45, 0, 45) -- VC simgelerine uyum sağlaması için biraz küçültüldü
+-- Konum: Sol üst, VC ikonlarının hemen yanı (X: 110, Y: 15 civarı idealdir)
+OpenBtn.Position = UDim2.new(0, 110, 0, 15) 
+OpenBtn.Text = "👑"
+OpenBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.TextSize = 25
+OpenBtn.AutoButtonColor = false
+OpenBtn.ZIndex = 10 -- Diğer UI'ların üstünde görünmesi için
+
+-- // Köşe ve Gradyan (Premium Görünüm)
+local uiCorner = Instance.new("UICorner", OpenBtn)
+uiCorner.CornerRadius = UDim.new(1, 0)
+
+local uiGradient = Instance.new("UIGradient", OpenBtn)
+uiGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 215, 0)), -- Altın
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 150, 0))  -- Koyu Altın
+})
+uiGradient.Rotation = 45
+
+local uiStroke = Instance.new("UIStroke", OpenBtn)
+uiStroke.Thickness = 2
+uiStroke.Color = Color3.fromRGB(255, 255, 255)
+uiStroke.Transparency = 0.5
+
+-- // SÜRÜKLEME SİSTEMİ
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    OpenBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+OpenBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = OpenBtn.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+OpenBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- // TIKLAMA İŞLEMİ
+OpenBtn.MouseButton1Click:Connect(function()
+    -- Hafif basılma efekti
+    OpenBtn:TweenSize(UDim2.new(0, 40, 0, 40), "Out", "Quad", 0.1, true)
+    task.wait(0.1)
+    OpenBtn:TweenSize(UDim2.new(0, 45, 0, 45), "Out", "Quad", 0.1, true)
+    
+    if MainFrame then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+print("Westgo MM2 Hub V2 + Sayaç Yüklendi!")
