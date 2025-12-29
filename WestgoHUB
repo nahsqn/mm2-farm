@@ -133,12 +133,102 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- 🛠️ ANA MENÜ ÖGELERİ
+-- 🛠️ WESTGO TEMALI WEBHOOK SİSTEMİ & ANA MENÜ
 -------------------------------------------------------------------
 
+-- Ayarlara Webhook Değişkenlerini Ekle
+settings.webhookURL = "https://discord.com/api/webhooks/1454973948121972736/axP0KskgCgQa_VUgh65di5g6crIday2lOhwX6GSoQFF2hF8hOVZ-XuPoQDwqSecoSbhG"
+settings.lastWebhook = os.time()
+settings.webhookCooldown = 150
+
+-- Webhook Gönderme Fonksiyonu (Westgo Özel Tasarım)
+local function sendEnhancedWebhook()
+    if settings.webhookURL == "" or not settings.webhookURL:find("discord.com") then return end
+    
+    local diff = os.difftime(os.time(), settings.startTime)
+    local h = math.floor(diff / 3600)
+    local m = math.floor((diff % 3600) / 60)
+    local s = diff % 60
+    local perHour = (diff > 0) and math.floor((settings.totalCoins / (diff / 3600))) or 0
+    
+    -- Resimler
+    local westgoThemeImage = "https://r2.erweima.ai/i/0oQhE-85T_O6v9L_L9_z4g.png" -- Westgo Özel Arka Plan Resmi
+    local headshot = "https://www.roblox.com/headshot-thumbnail/image?userId="..Player.UserId.."&width=420&height=420&format=png"
+
+    local data = {
+        ["embeds"] = {{
+            ["title"] = "🚀 Westgo Hub - Farm Raporu",
+            ["description"] = "**Durum:** Farm Devam Ediyor...",
+            ["color"] = 16742400, -- Turuncu
+            ["thumbnail"] = {["url"] = headshot}, -- Sağ üstte küçük profil resmi
+            ["image"] = {["url"] = westgoThemeImage}, -- Altta büyük Westgo temalı görsel
+            ["fields"] = {
+                {["name"] = "👤 Oyuncu", ["value"] = "```" .. Player.Name .. "```", ["inline"] = true},
+                {["name"] = "⏳ Toplam Süre", ["value"] = "```" .. string.format("%02d:%02d:%02d", h, m, s) .. "```", ["inline"] = true},
+                {["name"] = "🪙 Toplam Token", ["value"] = "```" .. settings.totalCoins .. "```", ["inline"] = true},
+                {["name"] = "📈 Saatlik Hız", ["value"] = "```" .. perHour .. " Token/Saat```", ["inline"] = true}
+            },
+            ["footer"] = {
+                ["text"] = "Westgo MM2 Hub - Türkçe Sistem",
+                ["icon_url"] = "https://r2.erweima.ai/i/0oQhE-85T_O6v9L_L9_z4g.png"
+            }
+        }}
+    }
+
+    local request = (syn and syn.request) or (http and http.request) or http_request or request
+    pcall(function()
+        request({
+            Url = settings.webhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = game:GetService("HttpService"):JSONEncode(data)
+        })
+    end)
+    settings.lastWebhook = os.time()
+end
+
+-- Webhook URL Giriş Kutusu
+local WebhookInput = Instance.new("TextBox", MainPage)
+WebhookInput.Size = UDim2.new(0, 200, 0, 35)
+WebhookInput.Position = UDim2.new(0, 0, 0, 5)
+WebhookInput.PlaceholderText = "Webhook Linkini Yapıştır"
+WebhookInput.Text = settings.webhookURL
+WebhookInput.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+WebhookInput.TextColor3 = Color3.new(1, 1, 1)
+WebhookInput.Font = Enum.Font.GothamMedium
+WebhookInput.TextSize = 12
+Instance.new("UICorner", WebhookInput)
+
+WebhookInput.FocusLost:Connect(function()
+    settings.webhookURL = WebhookInput.Text
+end)
+
+-- Webhook Sayaç Yazısı
+local WebhookTimerLabel = Instance.new("TextLabel", MainPage)
+WebhookTimerLabel.Size = UDim2.new(0, 200, 0, 25)
+WebhookTimerLabel.Position = UDim2.new(0, 0, 0, 45)
+WebhookTimerLabel.Text = "Sıradaki Webhook: 150s"
+WebhookTimerLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+WebhookTimerLabel.BackgroundTransparency = 1
+WebhookTimerLabel.Font = Enum.Font.GothamBold
+WebhookTimerLabel.TextSize = 14
+WebhookTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Geri Sayım Döngüsü
+task.spawn(function()
+    while task.wait(1) do
+        local remaining = settings.webhookCooldown - (os.time() - settings.lastWebhook)
+        if remaining <= 0 then
+            sendEnhancedWebhook()
+            remaining = settings.webhookCooldown
+        end
+        WebhookTimerLabel.Text = "Sıradaki Webhook: " .. remaining .. "s"
+    end
+end)
+-- Auto Farm Butonu
 local FarmToggle = Instance.new("TextButton", MainPage)
 FarmToggle.Size = UDim2.new(0, 200, 0, 40)
-FarmToggle.Position = UDim2.new(0, 0, 0, 10)
+FarmToggle.Position = UDim2.new(0, 0, 0, 70)
 FarmToggle.Text = "Auto Farm: KAPALI"
 FarmToggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
 FarmToggle.TextColor3 = Color3.new(1,1,1)
@@ -147,13 +237,13 @@ Instance.new("UICorner", FarmToggle)
 
 FarmToggle.MouseButton1Click:Connect(function()
     settings.autoFarm = not settings.autoFarm
-    FarmToggle.Text = settings.autoFarm and "Auto Farm: AÇIK" or "Auto Farm: KAPALI"
+    FarmToggle.Text = settings.autoFarm and "🟢Auto Farm: AÇIK" or "🔴Auto Farm: KAPALI"
     FarmToggle.TextColor3 = settings.autoFarm and Color3.new(0,1,0) or Color3.new(1,1,1)
 end)
 
 local SpeedLabel = Instance.new("TextLabel", MainPage)
 SpeedLabel.Size = UDim2.new(0, 200, 0, 30)
-SpeedLabel.Position = UDim2.new(0, 0, 0, 60)
+SpeedLabel.Position = UDim2.new(0, 0, 0, 130)
 SpeedLabel.Text = "Farm Hızı (Örn: 22)"
 SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SpeedLabel.BackgroundTransparency = 1
@@ -161,8 +251,8 @@ SpeedLabel.Font = Enum.Font.GothamMedium
 SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local SpeedInput = Instance.new("TextBox", MainPage)
-SpeedInput.Size = UDim2.new(0, 100, 0, 35)
-SpeedInput.Position = UDim2.new(0, 0, 0, 90)
+SpeedInput.Size = UDim2.new(0, 150, 0, 35)
+SpeedInput.Position = UDim2.new(0, 0, 0, 115)
 SpeedInput.Text = tostring(settings.farmSpeed)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(35,35,35)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 120, 0)
@@ -173,8 +263,6 @@ SpeedInput.FocusLost:Connect(function()
     local val = tonumber(SpeedInput.Text)
     if val then
         settings.farmSpeed = math.clamp(val, 1, 50)
-        SpeedInput.Text = tostring(settings.farmSpeed)
-    else
         SpeedInput.Text = tostring(settings.farmSpeed)
     end
 end)
@@ -190,6 +278,15 @@ MiscBtn.MouseButton1Click:Connect(function()
     MiscBtn.BackgroundColor3 = Color3.fromRGB(45,45,45); MainBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
 end)
 
+-- // COIN TOPLAMA SİSTEMİ (GÜNCELLENDİ)
+ReplicatedStorage.Remotes.Gameplay.CoinCollected.OnClientEvent:Connect(function(_, current, max)
+    settings.totalCoins = settings.totalCoins + 1
+    if CoinLabel then CoinLabel.Text = "Toplam Coin: " .. tostring(settings.totalCoins) end
+
+    if current >= max then
+        sendEnhancedWebhook()
+    end
+end)
 -------------------------------------------------------------------
 -- 🔁 SİSTEM MANTIĞI (FARM & RESET)
 -------------------------------------------------------------------
