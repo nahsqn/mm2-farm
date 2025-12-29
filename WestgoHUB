@@ -1,4 +1,4 @@
--- Murder Mystery 2 | Halloween 
+-- Murder Mystery 22 | Halloween 
 -- Yapımcı & Düzenleyen: westgo (Sayaç & Zaman Eklenmiş Versiyon)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
