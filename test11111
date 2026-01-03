@@ -1,0 +1,96 @@
+https://raw.githubusercontent.com/Axnnnnm/O/refs/heads/main/Axnn.txt
+
+
+--// Ayarlar ve Değişkenler
+local kickCount = 0
+local antiKickEnabled = true
+
+--// UI Oluşturma
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local StatusLabel = Instance.new("TextLabel")
+local CountLabel = Instance.new("TextLabel")
+local ToggleButton = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner")
+
+--// UI Özellikleri
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "AntiKickUI"
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+MainFrame.Size = UDim2.new(0, 200, 0, 150)
+MainFrame.Active = true
+MainFrame.Draggable = true -- Mouse ile sürükleyebilirsin
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "Gemini Anti-Kick"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+
+StatusLabel.Parent = MainFrame
+StatusLabel.Position = UDim2.new(0, 0, 0.3, 0)
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Text = "Durum: AKTİF"
+StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Font = Enum.Font.Gotham
+
+CountLabel.Parent = MainFrame
+CountLabel.Position = UDim2.new(0, 0, 0.5, 0)
+CountLabel.Size = UDim2.new(1, 0, 0, 20)
+CountLabel.Text = "Engellenen: 0"
+CountLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+CountLabel.BackgroundTransparency = 1
+
+ToggleButton.Parent = MainFrame
+ToggleButton.Position = UDim2.new(0.1, 0, 0.75, 0)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleButton.Text = "Kapat"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", ToggleButton)
+
+--// Anti-Kick Mantığı (Hooking)
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    
+    if (method == "Kick" or method == "kick") and antiKickEnabled then
+        kickCount = kickCount + 1
+        CountLabel.Text = "Engellenen: " .. tostring(kickCount)
+        warn("Kick engellendi!")
+        return nil
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+setreadonly(mt, true)
+
+--// Buton Fonksiyonu
+ToggleButton.MouseButton1Click:Connect(function()
+    antiKickEnabled = not antiKickEnabled
+    if antiKickEnabled then
+        ToggleButton.Text = "Kapat"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        StatusLabel.Text = "Durum: AKTİF"
+        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
+    else
+        ToggleButton.Text = "Aç"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        StatusLabel.Text = "Durum: DEVRE DIŞI"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
