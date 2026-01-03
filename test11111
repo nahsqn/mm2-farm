@@ -1,6 +1,4 @@
 https://raw.githubusercontent.com/Axnnnnm/O/refs/heads/main/Axnn.txt
-
-
 --// Ayarlar ve Değişkenler
 local kickCount = 0
 local antiKickEnabled = true
