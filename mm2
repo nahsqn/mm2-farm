@@ -1,0 +1,924 @@
+local players = game:GetService("Players")
+local lplayer = players.LocalPlayer
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
+local workspace = game:GetService("Workspace")
+
+-- UI OLUŞTURMA
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "iOSAdminPanel"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+-- Ana Container (iOS Card Stili)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainPanel"
+mainFrame.Size = UDim2.new(0, 360, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -180, 0.5, -250)
+mainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
+mainFrame.BackgroundTransparency = 0.05
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- iOS Yuvarlak Köşeler
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 24)
+corner.Parent = mainFrame
+
+-- Blur Efekti (iOS Glassmorphism)
+local blur = Instance.new("ImageLabel")
+blur.Name = "Blur"
+blur.Size = UDim2.new(1, 40, 1, 40)
+blur.Position = UDim2.new(0, -20, 0, -20)
+blur.BackgroundTransparency = 1
+blur.Image = "rbxassetid://5554236805"
+blur.ImageColor3 = Color3.fromRGB(0, 0, 0)
+blur.ImageTransparency = 0.7
+blur.ScaleType = Enum.ScaleType.Slice
+blur.SliceCenter = Rect.new(20, 20, 280, 280)
+blur.Parent = mainFrame
+
+-- Header
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 60)
+header.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
+header.BackgroundTransparency = 0.5
+header.BorderSizePixel = 0
+header.ZIndex = 10
+header.Parent = mainFrame
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 24)
+headerCorner.Parent = header
+
+-- Header Mask (Alt köşeleri düz yap)
+local headerMask = Instance.new("Frame")
+headerMask.Size = UDim2.new(1, 0, 0.5, 0)
+headerMask.Position = UDim2.new(0, 0, 0.5, 0)
+headerMask.BackgroundColor3 = header.BackgroundColor3
+headerMask.BackgroundTransparency = header.BackgroundTransparency
+headerMask.BorderSizePixel = 0
+headerMask.ZIndex = 10
+headerMask.Parent = header
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -40, 1, 0)
+title.Position = UDim2.new(0, 20, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Admin Control"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 22
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 11
+title.Parent = header
+
+-- Sürükleme Handle
+local dragHandle = Instance.new("TextButton")
+dragHandle.Name = "DragHandle"
+dragHandle.Size = UDim2.new(0, 40, 0, 5)
+dragHandle.Position = UDim2.new(0.5, -20, 0, 8)
+dragHandle.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+dragHandle.BorderSizePixel = 0
+dragHandle.Text = ""
+dragHandle.AutoButtonColor = false
+dragHandle.ZIndex = 11
+dragHandle.Parent = header
+
+local dragCorner = Instance.new("UICorner")
+dragCorner.CornerRadius = UDim.new(1, 0)
+dragCorner.Parent = dragHandle
+
+-- KAPATMA BUTONU
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -38, 0, 16)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 58)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 22
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 11
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(1, 0)
+closeCorner.Parent = closeBtn
+
+closeBtn.Parent = header
+
+-- SCROLLABLE CONTENT
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ScrollContent"
+scrollFrame.Size = UDim2.new(1, -32, 1, -76)
+scrollFrame.Position = UDim2.new(0, 16, 0, 68)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 120, 120)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+scrollFrame.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scrollFrame
+
+-- DURUM DEĞİŞKENLERİ
+local states = {
+    platform = false,
+    noclip = false,
+    teleport = false,
+    fly = false,
+    maxZoom = false,
+    antiFling = false,
+    playerESP = false,
+    gunESP = false,
+    specialESP = false
+}
+
+-- PLATFORM AYARLARI
+local platform = Instance.new("Part")
+platform.Name = "AdminPlatform"
+platform.Size = Vector3.new(12, 1, 12)
+platform.Anchored = true
+platform.CanCollide = true
+platform.Transparency = 1
+platform.TopSurface = Enum.SurfaceType.Smooth
+platform.Parent = nil
+
+-- TELEPORT TOOL SİSTEMİ
+local tpToolRef = nil
+local tpToolConnection = nil
+
+local function createTeleportTool()
+    if tpToolRef then
+        pcall(function() tpToolRef:Destroy() end)
+        tpToolRef = nil
+    end
+    if tpToolConnection then
+        pcall(function() tpToolConnection:Disconnect() end)
+        tpToolConnection = nil
+    end
+    
+    local backpack = lplayer:FindFirstChild("Backpack")
+    if not backpack then return end
+    
+    local existing = backpack:FindFirstChild("Teleport Tool")
+    if existing then existing:Destroy() end
+    
+    local tool = Instance.new("Tool")
+    tool.Name = "Teleport Tool"
+    tool.RequiresHandle = false
+    tool.TextureId = "rbxassetid://6034287525"
+    tool.Parent = backpack
+    
+    tpToolRef = tool
+    
+    tpToolConnection = tool.Activated:Connect(function()
+        if not states.teleport then return end
+        local mouse = lplayer:GetMouse()
+        local char = lplayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char:PivotTo(CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0)))
+        end
+    end)
+    
+    return tool
+end
+
+local function removeTeleportTool()
+    states.teleport = false
+    if tpToolRef then
+        pcall(function() tpToolRef:Destroy() end)
+        tpToolRef = nil
+    end
+    if tpToolConnection then
+        pcall(function() tpToolConnection:Disconnect() end)
+        tpToolConnection = nil
+    end
+    local backpack = lplayer:FindFirstChild("Backpack")
+    if backpack then
+        local existing = backpack:FindFirstChild("Teleport Tool")
+        if existing then existing:Destroy() end
+    end
+    local char = lplayer.Character
+    if char then
+        local hand = char:FindFirstChildOfClass("Tool")
+        if hand and hand.Name == "Teleport Tool" then
+            hand:Destroy()
+        end
+    end
+end
+
+-- ANTI-FLING SİSTEMİ
+local antiFlingConnection = nil
+local antiFlingBodyPos = nil
+local antiFlingBodyGyro = nil
+
+local function enableAntiFling()
+    local char = lplayer.Character
+    if not char then return end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Mevcut body position/gyro varsa temizle
+    if antiFlingBodyPos then antiFlingBodyPos:Destroy() end
+    if antiFlingBodyGyro then antiFlingBodyGyro:Destroy() end
+    
+    -- BodyPosition ile pozisyonu sabitle (sadece Y ekseni için yumuşak sabitleme)
+    antiFlingBodyPos = Instance.new("BodyPosition")
+    antiFlingBodyPos.Name = "AntiFlingBP"
+    antiFlingBodyPos.MaxForce = Vector3.new(0, math.huge, 0) -- Sadece dikey
+    antiFlingBodyPos.Position = root.Position
+    antiFlingBodyPos.D = 500 -- Damping
+    antiFlingBodyPos.P = 5000 -- Power
+    antiFlingBodyPos.Parent = root
+    
+    -- BodyGyro ile rotasyonu sabitle
+    antiFlingBodyGyro = Instance.new("BodyGyro")
+    antiFlingBodyGyro.Name = "AntiFlingBG"
+    antiFlingBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    antiFlingBodyGyro.CFrame = root.CFrame
+    antiFlingBodyGyro.D = 100
+    antiFlingBodyGyro.P = 10000
+    antiFlingBodyGyro.Parent = root
+    
+    -- Her frame pozisyonu güncelle (sadece çok hızlı hareketlerde müdahale)
+    antiFlingConnection = runService.Heartbeat:Connect(function()
+        if not states.antiFling then return end
+        if not lplayer.Character then return end
+        local currentRoot = lplayer.Character:FindFirstChild("HumanoidRootPart")
+        if not currentRoot then return end
+        
+        -- Çok hızlı hareket varsa (fling) pozisyonu sıfırla
+        local velocity = currentRoot.Velocity
+        if velocity.Magnitude > 150 then -- Fling tespiti
+            currentRoot.Velocity = Vector3.new(0, 0, 0)
+            currentRoot.RotVelocity = Vector3.new(0, 0, 0)
+            if antiFlingBodyPos then
+                antiFlingBodyPos.Position = currentRoot.Position - Vector3.new(0, 5, 0)
+            end
+        end
+        
+        -- BodyPosition'u güncelle (yumuşak takip)
+        if antiFlingBodyPos then
+            antiFlingBodyPos.Position = currentRoot.Position
+        end
+        if antiFlingBodyGyro then
+            antiFlingBodyGyro.CFrame = currentRoot.CFrame
+        end
+    end)
+end
+
+local function disableAntiFling()
+    states.antiFling = false
+    if antiFlingConnection then
+        antiFlingConnection:Disconnect()
+        antiFlingConnection = nil
+    end
+    if antiFlingBodyPos then
+        antiFlingBodyPos:Destroy()
+        antiFlingBodyPos = nil
+    end
+    if antiFlingBodyGyro then
+        antiFlingBodyGyro:Destroy()
+        antiFlingBodyGyro = nil
+    end
+end
+
+-- ESP AYARLARI
+local specialUserId = 5177153749
+
+local function getPlayerStatus(p)
+    local character = p.Character
+    local backpack = p:FindFirstChild("Backpack")
+    
+    local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or (character and character:FindFirstChild("Knife"))
+    local hasGun = (backpack and backpack:FindFirstChild("Gun")) or (character and character:FindFirstChild("Gun"))
+    
+    local color = Color3.fromRGB(0, 255, 0)
+    local icon = ""
+    
+    if p.UserId == specialUserId then
+        color = Color3.fromRGB(255, 0, 255)
+    elseif hasKnife then
+        color = Color3.fromRGB(255, 0, 0)
+    elseif hasGun then
+        color = Color3.fromRGB(0, 150, 255)
+    end
+    
+    if hasKnife then icon = "🔪" end
+    if hasGun then icon = "🔫" end
+    if hasKnife and hasGun then icon = "🔪🔫" end
+    
+    return color, icon
+end
+
+local function createPlayerTag(p)
+    local char = p.Character or p.CharacterAdded:Wait()
+    local head = char:WaitForChild("Head")
+    
+    local billboard = Instance.new("BillboardGui", char)
+    billboard.Name = "AdminESP"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 150, 0, 150)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = false
+    
+    local profileImage = Instance.new("ImageLabel", billboard)
+    profileImage.Name = "ProfileImage"
+    profileImage.Size = UDim2.new(0, 50, 0, 50)
+    profileImage.Position = UDim2.new(0.5, -25, 0, 0)
+    profileImage.BackgroundTransparency = 1
+    profileImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. p.UserId .. "&w=150&h=150"
+    
+    local iconLabel = Instance.new("TextLabel", billboard)
+    iconLabel.Name = "IconLabel"
+    iconLabel.Size = UDim2.new(0, 40, 0, 40)
+    iconLabel.Position = UDim2.new(0.5, 30, 0, 5)
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.TextSize = 25
+    
+    local nameLabel = Instance.new("TextLabel", billboard)
+    nameLabel.Name = "PlayerNameLabel"
+    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.Position = UDim2.new(0, 0, 0, 55)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = p.Name
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 14
+    
+    return billboard
+end
+
+local function applyGunESP(obj)
+    if obj.Name == "GunDrop" and obj:IsA("BasePart") then
+        local hl = obj:FindFirstChild("GunHighlight") or Instance.new("Highlight", obj)
+        hl.Name = "GunHighlight"
+        hl.FillColor = Color3.fromRGB(255, 255, 0)
+        hl.FillTransparency = 0.4
+        hl.OutlineColor = Color3.new(1, 1, 1)
+        hl.Enabled = states.gunESP
+        
+        local tag = obj:FindFirstChild("GunTag") or Instance.new("BillboardGui", obj)
+        if tag.Name ~= "GunTag" then
+            tag.Name = "GunTag"
+            tag.Size = UDim2.new(0, 50, 0, 50)
+            tag.AlwaysOnTop = true
+            tag.StudsOffset = Vector3.new(0, 1.5, 0)
+            local label = Instance.new("TextLabel", tag)
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = "🔫"
+            label.TextSize = 25
+        end
+        tag.Enabled = states.gunESP
+    end
+end
+
+-- iOS SWITCH COMPONENT
+local function createSwitch(name, icon, color, callback)
+    local container = Instance.new("Frame")
+    container.Name = name.."Container"
+    container.Size = UDim2.new(1, 0, 0, 60)
+    container.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
+    container.BackgroundTransparency = 0.6
+    container.BorderSizePixel = 0
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 16)
+    containerCorner.Parent = container
+    
+    local iconFrame = Instance.new("Frame")
+    iconFrame.Size = UDim2.new(0, 36, 0, 36)
+    iconFrame.Position = UDim2.new(0, 14, 0.5, -18)
+    iconFrame.BackgroundColor3 = color or Color3.fromRGB(10, 132, 255)
+    iconFrame.BorderSizePixel = 0
+    
+    local iconCorner = Instance.new("UICorner")
+    iconCorner.CornerRadius = UDim.new(0, 10)
+    iconCorner.Parent = iconFrame
+    
+    local iconLabel = Instance.new("ImageLabel")
+    iconLabel.Size = UDim2.new(0, 22, 0, 22)
+    iconLabel.Position = UDim2.new(0.5, -11, 0.5, -11)
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.Image = icon
+    iconLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    iconLabel.Parent = iconFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -140, 1, 0)
+    label.Position = UDim2.new(0, 62, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 16
+    label.Font = Enum.Font.GothamMedium
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local switchBg = Instance.new("TextButton")
+    switchBg.Name = "Switch"
+    switchBg.Size = UDim2.new(0, 51, 0, 31)
+    switchBg.Position = UDim2.new(1, -66, 0.5, -15)
+    switchBg.BackgroundColor3 = Color3.fromRGB(120, 120, 128)
+    switchBg.BorderSizePixel = 0
+    switchBg.Text = ""
+    switchBg.AutoButtonColor = false
+    
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(1, 0)
+    switchCorner.Parent = switchBg
+    
+    local circle = Instance.new("Frame")
+    circle.Name = "Circle"
+    circle.Size = UDim2.new(0, 27, 0, 27)
+    circle.Position = UDim2.new(0, 2, 0.5, -13)
+    circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    circle.BorderSizePixel = 0
+    
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(1, 0)
+    circleCorner.Parent = circle
+    
+    local glow = Instance.new("ImageLabel")
+    glow.Name = "Glow"
+    glow.Size = UDim2.new(1.5, 0, 1.5, 0)
+    glow.Position = UDim2.new(-0.25, 0, -0.25, 0)
+    glow.BackgroundTransparency = 1
+    glow.Image = "rbxassetid://5028857084"
+    glow.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    glow.ImageTransparency = 1
+    glow.Parent = circle
+    
+    circle.Parent = switchBg
+    switchBg.Parent = container
+    
+    local isOn = false
+    local function toggle()
+        isOn = not isOn
+        
+        local targetColor = isOn and Color3.fromRGB(48, 209, 88) or Color3.fromRGB(120, 120, 128)
+        local targetPos = isOn and UDim2.new(1, -29, 0.5, -13) or UDim2.new(0, 2, 0.5, -13)
+        
+        tweenService:Create(switchBg, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            BackgroundColor3 = targetColor
+        }):Play()
+        
+        tweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            Position = targetPos
+        }):Play()
+        
+        if isOn then
+            tweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.8}):Play()
+        else
+            tweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 1}):Play()
+        end
+        
+        callback(isOn)
+    end
+    
+    switchBg.MouseButton1Click:Connect(toggle)
+    
+    return container, toggle
+end
+
+-- SEKME BAŞLIKLARI
+local function createSection(titleText)
+    local section = Instance.new("TextLabel")
+    section.Size = UDim2.new(1, 0, 0, 25)
+    section.BackgroundTransparency = 1
+    section.Text = titleText
+    section.TextColor3 = Color3.fromRGB(120, 120, 120)
+    section.TextSize = 13
+    section.Font = Enum.Font.GothamBold
+    section.TextXAlignment = Enum.TextXAlignment.Left
+    return section
+end
+
+-- MOVEMENT SEKMESİ
+local movementSection = createSection("MOVEMENT")
+movementSection.Parent = scrollFrame
+
+local platformSwitch = createSwitch("Platform", "rbxassetid://6031302918", Color3.fromRGB(10, 132, 255), function(on)
+    states.platform = on
+    if on then
+        platform.Parent = workspace
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Platform Aktif",
+            Text = "Görünmez zemin oluşturuldu",
+            Duration = 2
+        })
+    else
+        platform.Parent = nil
+    end
+end)
+platformSwitch.Parent = scrollFrame
+
+local noclipSwitch = createSwitch("Noclip", "rbxassetid://6034281935", Color3.fromRGB(255, 159, 10), function(on)
+    states.noclip = on
+    if on then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Noclip Aktif",
+            Text = "Duvarlardan geçebilirsiniz",
+            Duration = 2
+        })
+    end
+end)
+noclipSwitch.Parent = scrollFrame
+
+local maxZoomSwitch = createSwitch("Max Zoom", "rbxassetid://6035067834", Color3.fromRGB(175, 82, 222), function(on)
+    states.maxZoom = on
+    if on then
+        lplayer.CameraMaxZoomDistance = 100000
+        lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Max Zoom Aktif",
+            Text = "Kamera sınırsız uzaklaştırıldı",
+            Duration = 2
+        })
+    else
+        lplayer.CameraMaxZoomDistance = 128
+        lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+    end
+end)
+maxZoomSwitch.Parent = scrollFrame
+
+local flySwitch = createSwitch("Fly", "rbxassetid://6035067836", Color3.fromRGB(255, 69, 58), function(on)
+    states.fly = on
+    local char = lplayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if on then
+            char.Humanoid.PlatformStand = true
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Fly Aktif",
+                Text = "Space/WASD ile uçun",
+                Duration = 2
+            })
+        else
+            char.Humanoid.PlatformStand = false
+            char.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end
+end)
+flySwitch.Parent = scrollFrame
+
+local tpSwitch = createSwitch("Teleport", "rbxassetid://6034287525", Color3.fromRGB(48, 209, 88), function(on)
+    states.teleport = on
+    if on then
+        createTeleportTool()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Teleport Aktif",
+            Text = "Tool envanterine eklendi (Kalıcı)",
+            Duration = 2
+        })
+    else
+        removeTeleportTool()
+    end
+end)
+tpSwitch.Parent = scrollFrame
+
+-- PROTECTION SEKMESİ (YENİ)
+local protectionSection = createSection("PROTECTION")
+protectionSection.Parent = scrollFrame
+
+-- ANTI-FLING (YENİ)
+local antiFlingSwitch = createSwitch("Anti Fling", "rbxassetid://6034281908", Color3.fromRGB(255, 149, 0), function(on)
+    states.antiFling = on
+    if on then
+        enableAntiFling()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Anti-Fling Aktif",
+            Text = "Fling atmalara karşı koruma açık",
+            Duration = 2
+        })
+    else
+        disableAntiFling()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Anti-Fling Kapalı",
+            Text = "Koruma devre dışı",
+            Duration = 2
+        })
+    end
+end)
+antiFlingSwitch.Parent = scrollFrame
+
+-- ESP SEKMESİ
+local espSection = createSection("ESP VISUALS")
+espSection.Parent = scrollFrame
+
+local playerESPSwitch = createSwitch("Player ESP", "rbxassetid://6031075931", Color3.fromRGB(255, 55, 95), function(on)
+    states.playerESP = on
+    if on then
+        for _, p in pairs(players:GetPlayers()) do
+            if p ~= lplayer and p.Character then
+                local tag = p.Character:FindFirstChild("AdminESP") or createPlayerTag(p)
+                local highlight = p.Character:FindFirstChild("ESPHighlight") or Instance.new("Highlight", p.Character)
+                if highlight.Name ~= "ESPHighlight" then highlight.Name = "ESPHighlight" end
+                highlight.Enabled = true
+                tag.Enabled = true
+            end
+        end
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Player ESP Aktif",
+            Text = "Oyuncuları görün",
+            Duration = 2
+        })
+    else
+        for _, p in pairs(players:GetPlayers()) do
+            if p.Character then
+                if p.Character:FindFirstChild("AdminESP") then p.Character.AdminESP.Enabled = false end
+                if p.Character:FindFirstChild("ESPHighlight") then p.Character.ESPHighlight.Enabled = false end
+            end
+        end
+    end
+end)
+playerESPSwitch.Parent = scrollFrame
+
+local gunESPSwitch = createSwitch("Gun ESP", "rbxassetid://6034287518", Color3.fromRGB(255, 214, 10), function(on)
+    states.gunESP = on
+    if on then
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "GunDrop" then
+                applyGunESP(v)
+            end
+        end
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Gun ESP Aktif",
+            Text = "Yerdeki silahları görün",
+            Duration = 2
+        })
+    else
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "GunHighlight" then v.Enabled = false end
+            if v.Name == "GunTag" then v.Enabled = false end
+        end
+    end
+end)
+gunESPSwitch.Parent = scrollFrame
+
+local specialESPSwitch = createSwitch("Special User", "rbxassetid://6031071053", Color3.fromRGB(191, 90, 242), function(on)
+    states.specialESP = on
+    if on then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Special ESP Aktif",
+            Text = "Özel kullanıcı vurgulandı",
+            Duration = 2
+        })
+    end
+end)
+specialESPSwitch.Parent = scrollFrame
+
+-- CanvasSize otomatik ayarlama
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+end)
+
+-- Küçültme/Büyütme
+local isOpen = true
+closeBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    local targetSize = isOpen and UDim2.new(0, 360, 0, 500) or UDim2.new(0, 360, 0, 60)
+    local targetText = isOpen and "×" or "+"
+    local targetColor = isOpen and Color3.fromRGB(255, 69, 58) or Color3.fromRGB(48, 209, 88)
+    
+    tweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+        Size = targetSize
+    }):Play()
+    
+    closeBtn.Text = targetText
+    closeBtn.BackgroundColor3 = targetColor
+end)
+
+-- SÜRÜKLEME FONKSİYONU
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
+                                   startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- ANA DÖNGÜLER
+
+-- 1. Platform Takibi + Noclip + Fly + AntiFling
+runService.Heartbeat:Connect(function()
+    local char = lplayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if not char or not root then return end
+    
+    -- Platform Takibi
+    if states.platform and platform.Parent then
+        platform.CFrame = CFrame.new(root.Position.X, root.Position.Y - 3.2, root.Position.Z)
+    end
+    
+    -- Noclip
+    if states.noclip then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "AdminPlatform" then
+                part.CanCollide = false
+            end
+        end
+    end
+    
+    -- Fly Kontrolü
+    if states.fly then
+        local humanoid = char:FindFirstChild("Humanoid")
+        local bg = root:FindFirstChild("FlyBG") or Instance.new("BodyGyro")
+        local bv = root:FindFirstChild("FlyBV") or Instance.new("BodyVelocity")
+        
+        if not root:FindFirstChild("FlyBG") then
+            bg.Name = "FlyBG"
+            bg.P = 9e4
+            bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            bg.CFrame = root.CFrame
+            bg.Parent = root
+        end
+        
+        if not root:FindFirstChild("FlyBV") then
+            bv.Name = "FlyBV"
+            bv.Velocity = Vector3.new(0, 0, 0)
+            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bv.Parent = root
+        end
+        
+        local cam = workspace.CurrentCamera
+        bg.CFrame = cam.CFrame
+        
+        local speed = 50
+        local moveDir = Vector3.new(0, 0, 0)
+        
+        if userInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDir = moveDir + cam.CFrame.LookVector
+        end
+        if userInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDir = moveDir - cam.CFrame.LookVector
+        end
+        if userInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDir = moveDir - cam.CFrame.RightVector
+        end
+        if userInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDir = moveDir + cam.CFrame.RightVector
+        end
+        if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
+        end
+        if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDir = moveDir - Vector3.new(0, 1, 0)
+        end
+        
+        bv.Velocity = moveDir * speed
+    else
+        if root:FindFirstChild("FlyBG") then root.FlyBG:Destroy() end
+        if root:FindFirstChild("FlyBV") then root.FlyBV:Destroy() end
+    end
+end)
+
+-- 2. Player ESP Güncelleme
+runService.Heartbeat:Connect(function()
+    if not states.playerESP then return end
+    
+    for _, p in pairs(players:GetPlayers()) do
+        if p ~= lplayer and p.Character then
+            local char = p.Character
+            local tag = char:FindFirstChild("AdminESP") or createPlayerTag(p)
+            local highlight = char:FindFirstChild("ESPHighlight") or Instance.new("Highlight", char)
+            
+            if highlight.Name ~= "ESPHighlight" then highlight.Name = "ESPHighlight" end
+            
+            local currentColor, currentIcon = getPlayerStatus(p)
+            
+            highlight.FillColor = currentColor
+            highlight.Enabled = true
+            tag.Enabled = true
+            
+            if states.specialESP and p.UserId == specialUserId then
+                tag.IconLabel.Text = currentIcon ~= "" and currentIcon or "⭐"
+                highlight.FillColor = Color3.fromRGB(255, 0, 255)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+            else
+                tag.IconLabel.Text = currentIcon
+                highlight.OutlineColor = Color3.new(1, 1, 1)
+            end
+            
+            tag.PlayerNameLabel.TextColor3 = currentColor
+        end
+    end
+end)
+
+-- 3. Gun ESP Tarama
+task.spawn(function()
+    while true do
+        if states.gunESP then
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v.Name == "GunDrop" then
+                    applyGunESP(v)
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+-- Yeni Oyuncu Katılınca ESP Ekle
+players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(1)
+        if states.playerESP and p ~= lplayer then
+            local tag = p.Character:FindFirstChild("AdminESP") or createPlayerTag(p)
+            local highlight = p.Character:FindFirstChild("ESPHighlight") or Instance.new("Highlight", p.Character)
+            if highlight.Name ~= "ESPHighlight" then highlight.Name = "ESPHighlight" end
+            highlight.Enabled = true
+            tag.Enabled = true
+        end
+    end)
+end)
+
+-- KARAKTER YENİDEN SPAWN OLDUĞUNDA
+local function onCharacterAdded(char)
+    -- Teleport Tool
+    if states.teleport then
+        task.wait(0.5)
+        createTeleportTool()
+    end
+    
+    -- Anti-Fling (Reset'te koruma devam etsin)
+    if states.antiFling then
+        task.wait(0.3)
+        enableAntiFling()
+    end
+    
+    -- Max Zoom
+    if states.maxZoom then
+        lplayer.CameraMaxZoomDistance = 100000
+        lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+    end
+    
+    -- ESP'leri yeniden uygula
+    if states.playerESP then
+        task.wait(1)
+        for _, p in pairs(players:GetPlayers()) do
+            if p ~= lplayer and p.Character then
+                local tag = p.Character:FindFirstChild("AdminESP") or createPlayerTag(p)
+                local highlight = p.Character:FindFirstChild("ESPHighlight") or Instance.new("Highlight", p.Character)
+                if highlight.Name ~= "ESPHighlight" then highlight.Name = "ESPHighlight" end
+                highlight.Enabled = true
+                tag.Enabled = true
+            end
+        end
+    end
+end
+
+lplayer.CharacterAdded:Connect(onCharacterAdded)
+
+if lplayer.Character then
+    onCharacterAdded(lplayer.Character)
+end
+
+-- AÇMA/KAPATMA TOGGLE (F tuşu)
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
+        screenGui.Enabled = not screenGui.Enabled
+    end
+end)
+
+print("iOS Admin Panel + ESP + Anti-Fling Aktif! (F tuşu ile gizle/göster)")
