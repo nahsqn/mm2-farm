@@ -293,7 +293,7 @@ local function disableAntiFling()
 end
 
 -- ESP AYARLARI
-local specialUserId = 5177153749
+local specialUserId = 4662465306
 
 local function getPlayerStatus(p)
     local character = p.Character
