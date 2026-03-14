@@ -1,0 +1,936 @@
+local players = game:GetService("Players")
+local lplayer = players.LocalPlayer
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
+local userInputService = game:GetService("UserInputService")
+local workspace = game:GetService("Workspace")
+
+-- ============================================================
+-- 1. ANA UI SCREENGUI
+-- ============================================================
+local mainGui = Instance.new("ScreenGui")
+mainGui.Name = "GeminiFling_Main"
+mainGui.ResetOnSpawn = false
+mainGui.IgnoreGuiInset = true
+mainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+mainGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+-- ============================================================
+-- 2. ALERT UI SCREENGUI
+-- ============================================================
+local alertGui = Instance.new("ScreenGui")
+alertGui.Name = "GeminiFling_Alert"
+alertGui.ResetOnSpawn = false
+alertGui.IgnoreGuiInset = true
+alertGui.DisplayOrder = 9999
+alertGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+alertGui.Enabled = false
+alertGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+-- ============================================================
+-- 3. BİLDİRİM UI (iOS Style)
+-- ============================================================
+local notifGui = Instance.new("ScreenGui")
+notifGui.Name = "GeminiFling_Notifications"
+notifGui.ResetOnSpawn = false
+notifGui.IgnoreGuiInset = true
+notifGui.DisplayOrder = 10000
+notifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+notifGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+local notifContainer = Instance.new("Frame")
+notifContainer.Name = "NotifContainer"
+notifContainer.Size = UDim2.new(0, 320, 0, 100)
+notifContainer.Position = UDim2.new(1, -340, 1, -120)
+notifContainer.BackgroundTransparency = 1
+notifContainer.Parent = notifGui
+
+-- ============================================================
+-- 4. ANA PANEL
+-- ============================================================
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainPanel"
+mainFrame.Size = UDim2.new(0, 380, 0, 600)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -300)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = mainGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 20)
+
+-- HEADER
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 60)
+header.BackgroundTransparency = 1
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Text = "Fling Beta "
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.new(0, 20, 0, 0)
+title.Font = Enum.Font.BuilderSansBold
+title.TextSize = 22
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+title.Parent = header
+
+-- by WestGO yazısı
+local westGoLabel = Instance.new("TextLabel")
+westGoLabel.Name = "WestGOLabel"
+westGoLabel.Text = "by WestGO"
+westGoLabel.Size = UDim2.new(0, 100, 0, 20)
+westGoLabel.Position = UDim2.new(0, 20, 0, 40)
+westGoLabel.Font = Enum.Font.BuilderSansMedium
+westGoLabel.TextSize = 12
+westGoLabel.TextColor3 = Color3.fromRGB(255, 159, 10)
+westGoLabel.TextXAlignment = Enum.TextXAlignment.Left
+westGoLabel.BackgroundTransparency = 1
+westGoLabel.Parent = header
+
+-- Butonlar
+local minBtn = Instance.new("TextButton")
+minBtn.Name = "MinimizeBtn"
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -80, 0, 15)
+minBtn.BackgroundColor3 = Color3.fromRGB(255, 159, 10)
+minBtn.Text = "−"
+minBtn.TextColor3 = Color3.new(1,1,1)
+minBtn.Font = Enum.Font.BuilderSansBold
+minBtn.TextSize = 20
+minBtn.Parent = mainFrame
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1, 0)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 15)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 58)
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.BuilderSansBold
+closeBtn.TextSize = 20
+closeBtn.Parent = mainFrame
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+-- Scroll Frame
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "PlayerList"
+scroll.Size = UDim2.new(1, -20, 1, -220)
+scroll.Position = UDim2.new(0, 10, 0, 70)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 4
+scroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 8)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 5)
+padding.PaddingBottom = UDim.new(0, 5)
+padding.Parent = scroll
+
+-- SEÇİM BUTONLARI
+local selectAllBtn = Instance.new("TextButton")
+selectAllBtn.Name = "SelectAllBtn"
+selectAllBtn.Text = "Tümünü Seç"
+selectAllBtn.Size = UDim2.new(0.5, -15, 0, 35)
+selectAllBtn.Position = UDim2.new(0, 10, 1, -145)
+selectAllBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+selectAllBtn.TextColor3 = Color3.new(1, 1, 1)
+selectAllBtn.Font = Enum.Font.BuilderSansBold
+selectAllBtn.TextSize = 14
+selectAllBtn.Parent = mainFrame
+Instance.new("UICorner", selectAllBtn).CornerRadius = UDim.new(0, 8)
+
+local deselectAllBtn = Instance.new("TextButton")
+deselectAllBtn.Name = "DeselectAllBtn"
+deselectAllBtn.Text = "Tümünü Çıkar"
+deselectAllBtn.Size = UDim2.new(0.5, -15, 0, 35)
+deselectAllBtn.Position = UDim2.new(0.5, 5, 1, -145)
+deselectAllBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+deselectAllBtn.TextColor3 = Color3.new(1, 1, 1)
+deselectAllBtn.Font = Enum.Font.BuilderSansBold
+deselectAllBtn.TextSize = 14
+deselectAllBtn.Parent = mainFrame
+Instance.new("UICorner", deselectAllBtn).CornerRadius = UDim.new(0, 8)
+
+-- START/STOP Butonları
+local startBtn = Instance.new("TextButton")
+startBtn.Name = "StartBtn"
+startBtn.Text = "START FLING"
+startBtn.Size = UDim2.new(0.5, -15, 0, 45)
+startBtn.Position = UDim2.new(0, 10, 1, -100)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+startBtn.TextColor3 = Color3.new(1, 1, 1)
+startBtn.Font = Enum.Font.BuilderSansBold
+startBtn.TextSize = 16
+startBtn.Parent = mainFrame
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 10)
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Name = "StopBtn"
+stopBtn.Text = "STOP FLING"
+stopBtn.Size = UDim2.new(0.5, -15, 0, 45)
+stopBtn.Position = UDim2.new(0.5, 5, 1, -100)
+stopBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+stopBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBtn.Font = Enum.Font.BuilderSansBold
+stopBtn.TextSize = 16
+stopBtn.Parent = mainFrame
+Instance.new("UICorner", stopBtn).CornerRadius = UDim.new(0, 10)
+
+-- ============================================================
+-- 5. ALERT PANEL
+-- ============================================================
+local overlay = Instance.new("Frame")
+overlay.Name = "Overlay"
+overlay.Size = UDim2.new(1, 0, 1, 0)
+overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+overlay.BackgroundTransparency = 1
+overlay.BorderSizePixel = 0
+overlay.Active = true
+overlay.Parent = alertGui
+
+local alertBox = Instance.new("Frame")
+alertBox.Name = "AlertBox"
+alertBox.Size = UDim2.new(0, 320, 0, 200)
+alertBox.Position = UDim2.new(0.5, -160, 0.5, -100)
+alertBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+alertBox.BorderSizePixel = 0
+alertBox.Active = true
+alertBox.Parent = alertGui
+
+Instance.new("UICorner", alertBox).CornerRadius = UDim.new(0, 16)
+
+local alertTitle = Instance.new("TextLabel")
+alertTitle.Text = "Paneli Kapat"
+alertTitle.Size = UDim2.new(1, 0, 0, 50)
+alertTitle.Position = UDim2.new(0, 0, 0, 15)
+alertTitle.Font = Enum.Font.BuilderSansBold
+alertTitle.TextSize = 20
+alertTitle.TextColor3 = Color3.new(1, 1, 1)
+alertTitle.BackgroundTransparency = 1
+alertTitle.Parent = alertBox
+
+local alertMsg = Instance.new("TextLabel")
+alertMsg.Text = "Fling sistemini durdurup paneli kapatmak istediğinize emin misiniz?"
+alertMsg.Size = UDim2.new(1, -40, 0, 70)
+alertMsg.Position = UDim2.new(0, 20, 0, 65)
+alertMsg.Font = Enum.Font.BuilderSansMedium
+alertMsg.TextSize = 16
+alertMsg.TextColor3 = Color3.fromRGB(200, 200, 200)
+alertMsg.TextWrapped = true
+alertMsg.TextXAlignment = Enum.TextXAlignment.Center
+alertMsg.BackgroundTransparency = 1
+alertMsg.Parent = alertBox
+
+local line = Instance.new("Frame")
+line.Size = UDim2.new(1, 0, 0, 1)
+line.Position = UDim2.new(0, 0, 1, -50)
+line.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+line.BorderSizePixel = 0
+line.Parent = alertBox
+
+local cancelBtn = Instance.new("TextButton")
+cancelBtn.Text = "Vazgeç"
+cancelBtn.Size = UDim2.new(0.5, 0, 0, 50)
+cancelBtn.Position = UDim2.new(0, 0, 1, -50)
+cancelBtn.Font = Enum.Font.BuilderSansMedium
+cancelBtn.TextSize = 17
+cancelBtn.TextColor3 = Color3.fromRGB(0, 122, 255)
+cancelBtn.BackgroundTransparency = 1
+cancelBtn.Parent = alertBox
+
+local confirmBtn = Instance.new("TextButton")
+confirmBtn.Text = "Kapat"
+confirmBtn.Size = UDim2.new(0.5, 0, 0, 50)
+confirmBtn.Position = UDim2.new(0.5, 0, 1, -50)
+confirmBtn.Font = Enum.Font.BuilderSansBold
+confirmBtn.TextSize = 17
+confirmBtn.TextColor3 = Color3.fromRGB(255, 69, 58)
+confirmBtn.BackgroundTransparency = 1
+confirmBtn.Parent = alertBox
+
+local vLine = Instance.new("Frame")
+vLine.Size = UDim2.new(0, 1, 0, 50)
+vLine.Position = UDim2.new(0.5, 0, 1, -50)
+vLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+vLine.BorderSizePixel = 0
+vLine.Parent = alertBox
+
+-- ============================================================
+-- 6. DEĞİŞKENLER
+-- ============================================================
+local selectedTargets = {}
+local playerRows = {}
+local isMinimized = false
+local isAlertOpen = false
+local flingActive = false
+local activeNotifications = {}
+
+getgenv().OldPos = nil
+getgenv().FPDH = workspace.FallenPartsDestroyHeight
+
+-- ============================================================
+-- 7. FONKSİYONLAR
+-- ============================================================
+
+local function getAvatarUrl(userId)
+    return "https://www.roblox.com/headshot-thumbnail/image?userId=" .. userId .. "&width=150&height=150&format=png"
+end
+
+-- iOS BİLDİRİM FONKSİYONU
+local function showNotification(title, message, duration)
+    duration = duration or 3
+    
+    local notifFrame = Instance.new("Frame")
+    notifFrame.Name = "Notification"
+    notifFrame.Size = UDim2.new(0, 300, 0, 80)
+    notifFrame.Position = UDim2.new(1, 20, 0, 0) -- Sağdan dışarıda başla
+    notifFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    notifFrame.BorderSizePixel = 0
+    notifFrame.Parent = notifContainer
+    
+    -- Blur efekti için
+    local blur = Instance.new("ImageLabel")
+    blur.Name = "Blur"
+    blur.Size = UDim2.new(1, 0, 1, 0)
+    blur.BackgroundTransparency = 1
+    blur.Image = "rbxassetid://1316045217" -- Blur texture
+    blur.ImageColor3 = Color3.fromRGB(20, 20, 20)
+    blur.ImageTransparency = 0.3
+    blur.Parent = notifFrame
+    
+    Instance.new("UICorner", notifFrame).CornerRadius = UDim.new(0, 16)
+    
+    -- App ikonu (Fling simgesi)
+    local icon = Instance.new("Frame")
+    icon.Name = "Icon"
+    icon.Size = UDim2.new(0, 50, 0, 50)
+    icon.Position = UDim2.new(0, 15, 0.5, -25)
+    icon.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+    icon.Parent = notifFrame
+    Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 12)
+    
+    local iconText = Instance.new("TextLabel")
+    iconText.Text = "⚡"
+    iconText.Size = UDim2.new(1, 0, 1, 0)
+    iconText.BackgroundTransparency = 1
+    iconText.TextSize = 28
+    iconText.Parent = icon
+    
+    -- Başlık
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Text = title
+    titleLabel.Size = UDim2.new(1, -80, 0, 25)
+    titleLabel.Position = UDim2.new(0, 75, 0, 12)
+    titleLabel.Font = Enum.Font.BuilderSansBold
+    titleLabel.TextSize = 16
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Parent = notifFrame
+    
+    -- Mesaj
+    local msgLabel = Instance.new("TextLabel")
+    msgLabel.Text = message
+    msgLabel.Size = UDim2.new(1, -80, 0, 35)
+    msgLabel.Position = UDim2.new(0, 75, 0, 35)
+    msgLabel.Font = Enum.Font.BuilderSansMedium
+    msgLabel.TextSize = 14
+    msgLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    msgLabel.TextWrapped = true
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.Parent = notifFrame
+    
+    -- Giriş animasyonu (sağdan sola kayar)
+    notifFrame.Position = UDim2.new(1, 20, 0, 0)
+    tweenService:Create(notifFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 0, 0)
+    }):Play()
+    
+    -- Diğer bildirimleri aşağı kaydır
+    for i, existingNotif in ipairs(activeNotifications) do
+        tweenService:Create(existingNotif, TweenInfo.new(0.3), {
+            Position = UDim2.new(0, 0, 0, i * 90)
+        }):Play()
+    end
+    
+    table.insert(activeNotifications, 1, notifFrame)
+    
+    -- Otomatik kapanma
+    task.delay(duration, function()
+        -- Çıkış animasyonu (sağa doğru kayar)
+        tweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 20, 0, notifFrame.Position.Y.Offset)
+        }):Play()
+        
+        task.wait(0.3)
+        
+        -- Listeden kaldır ve diğerlerini yukarı kaydır
+        local index = table.find(activeNotifications, notifFrame)
+        if index then
+            table.remove(activeNotifications, index)
+        end
+        
+        for i, existingNotif in ipairs(activeNotifications) do
+            tweenService:Create(existingNotif, TweenInfo.new(0.3), {
+                Position = UDim2.new(0, 0, 0, (i-1) * 90)
+            }):Play()
+        end
+        
+        notifFrame:Destroy()
+    end)
+    
+    -- Tıklama ile erken kapatma
+    notifFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            tweenService:Create(notifFrame, TweenInfo.new(0.2), {
+                Position = UDim2.new(1, 20, 0, notifFrame.Position.Y.Offset)
+            }):Play()
+            task.wait(0.2)
+            
+            local index = table.find(activeNotifications, notifFrame)
+            if index then
+                table.remove(activeNotifications, index)
+            end
+            
+            for i, existingNotif in ipairs(activeNotifications) do
+                tweenService:Create(existingNotif, TweenInfo.new(0.3), {
+                    Position = UDim2.new(0, 0, 0, (i-1) * 90)
+                }):Play()
+            end
+            
+            notifFrame:Destroy()
+        end
+    end)
+end
+
+-- Arkadaş kontrolü
+local function isFriend(player)
+    return lplayer:IsFriendsWith(player.UserId)
+end
+
+local function highlightSelectedTargets()
+    for player, row in pairs(playerRows) do
+        local isSelected = selectedTargets[player.Name] ~= nil
+        local isFriendPlayer = isFriend(player)
+        
+        if isSelected then
+            row.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+            local statusDot = row:FindFirstChild("StatusDot")
+            if statusDot then
+                statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+            end
+        else
+            if isFriendPlayer then
+                row.BackgroundColor3 = Color3.fromRGB(50, 45, 30)
+            else
+                row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            end
+            
+            local statusDot = row:FindFirstChild("StatusDot")
+            if statusDot then
+                statusDot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            end
+        end
+    end
+end
+
+local function toggleSelection(target)
+    if selectedTargets[target.Name] then
+        selectedTargets[target.Name] = nil
+    else
+        selectedTargets[target.Name] = target
+    end
+    highlightSelectedTargets()
+end
+
+local function selectAll()
+    for _, p in pairs(players:GetPlayers()) do
+        if p ~= lplayer and not isFriend(p) then
+            selectedTargets[p.Name] = p
+        end
+    end
+    highlightSelectedTargets()
+end
+
+local function deselectAll()
+    table.clear(selectedTargets)
+    highlightSelectedTargets()
+end
+
+local function skidFling(targetPlayer)
+    local character = lplayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local rootPart = humanoid and humanoid.RootPart
+    local tCharacter = targetPlayer.Character
+    
+    if not tCharacter then return end
+    
+    local tHumanoid
+    local tRootPart
+    local tHead
+    local accessory
+    local handle
+    
+    if tCharacter:FindFirstChildOfClass("Humanoid") then
+        tHumanoid = tCharacter:FindFirstChildOfClass("Humanoid")
+    end
+    if tHumanoid and tHumanoid.RootPart then
+        tRootPart = tHumanoid.RootPart
+    end
+    if tCharacter:FindFirstChild("Head") then
+        tHead = tCharacter.Head
+    end
+    if tCharacter:FindFirstChildOfClass("Accessory") then
+        accessory = tCharacter:FindFirstChildOfClass("Accessory")
+    end
+    if accessory and accessory:FindFirstChild("Handle") then
+        handle = accessory.Handle
+    end
+    
+    if character and humanoid and rootPart then
+        if rootPart.Velocity.Magnitude < 50 then
+            getgenv().OldPos = rootPart.CFrame
+        end
+        
+        if tHumanoid and tHumanoid.Sit then
+            return
+        end
+        
+        if tHead then
+            workspace.CurrentCamera.CameraSubject = tHead
+        elseif handle then
+            workspace.CurrentCamera.CameraSubject = handle
+        elseif tHumanoid and tRootPart then
+            workspace.CurrentCamera.CameraSubject = tHumanoid
+        end
+        
+        if not tCharacter:FindFirstChildWhichIsA("BasePart") then
+            return
+        end
+        
+        local fPos = function(basePart, pos, ang)
+            rootPart.CFrame = CFrame.new(basePart.Position) * pos * ang
+            character:SetPrimaryPartCFrame(CFrame.new(basePart.Position) * pos * ang)
+            rootPart.Velocity = Vector3.new(9e7, 9e7 * 10, 9e7)
+            rootPart.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+        end
+        
+        local sfBasePart = function(basePart)
+            local timeToWait = 2
+            local time = tick()
+            local angle = 0
+            repeat
+                if rootPart and tHumanoid and flingActive then
+                    if basePart.Velocity.Magnitude < 50 then
+                        angle = angle + 100
+                        fPos(basePart, CFrame.new(0, 1.5, 0) + tHumanoid.MoveDirection * basePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(angle),0 ,0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0) + tHumanoid.MoveDirection * basePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(angle), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, 1.5, 0) + tHumanoid.MoveDirection * basePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(angle),0 ,0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0) + tHumanoid.MoveDirection * basePart.Velocity.Magnitude / 1.25, CFrame.Angles(math.rad(angle), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, 1.5, 0) + tHumanoid.MoveDirection, CFrame.Angles(math.rad(angle),0 ,0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0) + tHumanoid.MoveDirection, CFrame.Angles(math.rad(angle), 0, 0))
+                        task.wait()
+                    else
+                        fPos(basePart, CFrame.new(0, 1.5, tHumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, -tHumanoid.WalkSpeed), CFrame.Angles(0, 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, 1.5, tHumanoid.WalkSpeed), CFrame.Angles(math.rad(90), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0), CFrame.Angles(math.rad(90), 0, 0))
+                        task.wait()
+                        fPos(basePart, CFrame.new(0, -1.5, 0), CFrame.Angles(0, 0, 0))
+                        task.wait()
+                    end
+                end
+            until time + timeToWait < tick() or not flingActive
+        end
+        
+        workspace.FallenPartsDestroyHeight = 0/0
+        
+        local bv = Instance.new("BodyVelocity")
+        bv.Parent = rootPart
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+        
+        if tRootPart then
+            sfBasePart(tRootPart)
+        elseif tHead then
+            sfBasePart(tHead)
+        elseif handle then
+            sfBasePart(handle)
+        end
+        
+        bv:Destroy()
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+        workspace.CurrentCamera.CameraSubject = humanoid
+        
+        if getgenv().OldPos then
+            repeat
+                rootPart.CFrame = getgenv().OldPos * CFrame.new(0, .5, 0)
+                character:SetPrimaryPartCFrame(getgenv().OldPos * CFrame.new(0, .5, 0))
+                humanoid:ChangeState("GettingUp")
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.Velocity, part.RotVelocity = Vector3.new(), Vector3.new()
+                    end
+                end
+                task.wait()
+            until (rootPart.Position - getgenv().OldPos.p).Magnitude < 25
+            workspace.FallenPartsDestroyHeight = getgenv().FPDH
+        end
+    end
+end
+
+local function startFling()
+    if flingActive then return end
+    
+    local count = 0
+    for _ in pairs(selectedTargets) do count = count + 1 end
+    if count == 0 then 
+        showNotification("Uyarı", "Seçili hedef yok!", 2)
+        return 
+    end
+    
+    flingActive = true
+    startBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    
+    -- Başlangıç bildirimi
+    showNotification("Fling Başladı", count .. " kişi uçuruluyor...", 2)
+    
+    task.spawn(function()
+        while flingActive do
+            local validTargets = {}
+            
+            for name, player in pairs(selectedTargets) do
+                if player and player.Parent then
+                    validTargets[name] = player
+                else
+                    selectedTargets[name] = nil
+                end
+            end
+            
+            for _, player in pairs(validTargets) do
+                if flingActive then
+                    skidFling(player)
+                    task.wait(0.1)
+                else
+                    break
+                end
+            end
+            
+            highlightSelectedTargets()
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function stopFling()
+    if not flingActive then return end
+    flingActive = false
+    startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+    
+    -- BİLDİRİM GELİYOR!
+    showNotification("Fling Durduruldu", "Uçurma işlemi başarıyla durduruldu.", 4)
+end
+
+local function refreshList()
+    for _, v in pairs(scroll:GetChildren()) do
+        if v:IsA("Frame") or v:IsA("TextButton") then
+            v:Destroy()
+        end
+    end
+    table.clear(playerRows)
+    
+    for _, p in pairs(players:GetPlayers()) do
+        if p ~= lplayer then
+            local isFriendPlayer = isFriend(p)
+            
+            local row = Instance.new("TextButton")
+            row.Name = p.Name .. "_Row"
+            row.Size = UDim2.new(1, -10, 0, 70)
+            row.BackgroundColor3 = isFriendPlayer and Color3.fromRGB(50, 45, 30) or Color3.fromRGB(35, 35, 35)
+            row.Text = ""
+            row.AutoButtonColor = false
+            row.LayoutOrder = #scroll:GetChildren()
+            row.Parent = scroll
+            
+            if isFriendPlayer then
+                local stroke = Instance.new("UIStroke")
+                stroke.Color = Color3.fromRGB(255, 200, 50)
+                stroke.Thickness = 2
+                stroke.Parent = row
+            end
+            
+            playerRows[p] = row
+            
+            Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+            
+            local avatarImg = Instance.new("ImageLabel")
+            avatarImg.Name = "Avatar"
+            avatarImg.Size = UDim2.new(0, 50, 0, 50)
+            avatarImg.Position = UDim2.new(0, 10, 0.5, -25)
+            avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            avatarImg.BorderSizePixel = 0
+            avatarImg.Image = getAvatarUrl(p.UserId)
+            avatarImg.Parent = row
+            Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(1, 0)
+            
+            local displayName = Instance.new("TextLabel")
+            displayName.Name = "DisplayName"
+            displayName.Text = p.DisplayName
+            displayName.Size = UDim2.new(1, -80, 0, 25)
+            displayName.Position = UDim2.new(0, 70, 0, 10)
+            displayName.Font = Enum.Font.BuilderSansBold
+            displayName.TextSize = 16
+            displayName.TextColor3 = isFriendPlayer and Color3.fromRGB(255, 220, 100) or Color3.new(1, 1, 1)
+            displayName.TextXAlignment = Enum.TextXAlignment.Left
+            displayName.BackgroundTransparency = 1
+            displayName.Parent = row
+            
+            local userName = Instance.new("TextLabel")
+            userName.Name = "UserName"
+            userName.Text = "@" .. p.Name .. (isFriendPlayer and " (Arkadaş)" or "")
+            userName.Size = UDim2.new(1, -80, 0, 20)
+            userName.Position = UDim2.new(0, 70, 0, 35)
+            userName.Font = Enum.Font.BuilderSansMedium
+            userName.TextSize = 14
+            userName.TextColor3 = isFriendPlayer and Color3.fromRGB(255, 200, 80) or Color3.fromRGB(150, 150, 150)
+            userName.TextXAlignment = Enum.TextXAlignment.Left
+            userName.BackgroundTransparency = 1
+            userName.Parent = row
+            
+            local statusDot = Instance.new("Frame")
+            statusDot.Name = "StatusDot"
+            statusDot.Size = UDim2.new(0, 8, 0, 8)
+            statusDot.Position = UDim2.new(1, -20, 0.5, -4)
+            statusDot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            statusDot.BorderSizePixel = 0
+            statusDot.Parent = row
+            Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+            
+            row.MouseEnter:Connect(function()
+                if not selectedTargets[p.Name] then
+                    if isFriendPlayer then
+                        tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(60, 55, 40)}):Play()
+                    else
+                        tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                    end
+                end
+            end)
+            
+            row.MouseLeave:Connect(function()
+                if not selectedTargets[p.Name] then
+                    if isFriendPlayer then
+                        tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 45, 30)}):Play()
+                    else
+                        tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
+                    end
+                end
+            end)
+            
+            row.MouseButton1Click:Connect(function()
+                toggleSelection(p)
+            end)
+        end
+    end
+    
+    highlightSelectedTargets()
+end
+
+local function showAlert()
+    if isAlertOpen then return end
+    isAlertOpen = true
+    
+    alertBox.Position = UDim2.new(0.5, -160, 0.5, -80)
+    alertBox.BackgroundTransparency = 1
+    overlay.BackgroundTransparency = 1
+    
+    alertGui.Enabled = true
+    
+    tweenService:Create(overlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+    tweenService:Create(alertBox, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+        Position = UDim2.new(0.5, -160, 0.5, -100),
+        BackgroundTransparency = 0
+    }):Play()
+end
+
+local function hideAlert()
+    if not isAlertOpen then return end
+    
+    local t1 = tweenService:Create(overlay, TweenInfo.new(0.2), {BackgroundTransparency = 1})
+    local t2 = tweenService:Create(alertBox, TweenInfo.new(0.2), {
+        Position = UDim2.new(0.5, -160, 0.5, -80),
+        BackgroundTransparency = 1
+    })
+    
+    t1:Play()
+    t2:Play()
+    
+    t2.Completed:Connect(function()
+        alertGui.Enabled = false
+        isAlertOpen = false
+    end)
+end
+
+-- ============================================================
+-- 8. EVENTLER
+-- ============================================================
+
+minBtn.MouseButton1Click:Connect(function()
+    if isAlertOpen then return end
+    
+    isMinimized = not isMinimized
+    
+    if isMinimized then
+        tweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
+            Size = UDim2.new(0, 220, 0, 60)
+        }):Play()
+        scroll.Visible = false
+        westGoLabel.Visible = false
+        selectAllBtn.Visible = false
+        deselectAllBtn.Visible = false
+        startBtn.Visible = false
+        stopBtn.Visible = false
+    else
+        scroll.Visible = true
+        westGoLabel.Visible = true
+        selectAllBtn.Visible = true
+        deselectAllBtn.Visible = true
+        startBtn.Visible = true
+        stopBtn.Visible = true
+        tweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
+            Size = UDim2.new(0, 380, 0, 600)
+        }):Play()
+        task.wait(0.1)
+        refreshList()
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(showAlert)
+
+cancelBtn.MouseButton1Click:Connect(hideAlert)
+
+confirmBtn.MouseButton1Click:Connect(function()
+    stopFling()
+    mainGui:Destroy()
+    alertGui:Destroy()
+    notifGui:Destroy()
+end)
+
+overlay.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        hideAlert()
+    end
+end)
+
+selectAllBtn.MouseButton1Click:Connect(selectAll)
+deselectAllBtn.MouseButton1Click:Connect(deselectAll)
+
+startBtn.MouseButton1Click:Connect(startFling)
+stopBtn.MouseButton1Click:Connect(stopFling)
+
+players.PlayerAdded:Connect(function(p)
+    task.wait(1)
+    refreshList()
+end)
+
+players.PlayerRemoving:Connect(function(p)
+    if selectedTargets[p.Name] then
+        selectedTargets[p.Name] = nil
+    end
+    task.wait(0.5)
+    refreshList()
+end)
+
+-- ============================================================
+-- 9. SÜRÜKLEME
+-- ============================================================
+
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+
+header.InputBegan:Connect(function(input)
+    if isAlertOpen then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    
+    dragging = true
+    dragStart = input.Position
+    startPos = mainFrame.AbsolutePosition
+    
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end)
+
+header.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    
+    dragInput = input
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input ~= dragInput then return end
+    
+    local currentPos = input.Position
+    local delta = currentPos - dragStart
+    
+    local newX = startPos.X + delta.X
+    local newY = startPos.Y + delta.Y
+    
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = mainFrame.AbsoluteSize
+    
+    newX = math.clamp(newX, 0, math.max(0, screenSize.X - frameSize.X))
+    newY = math.clamp(newY, 0, math.max(0, screenSize.Y - frameSize.Y))
+    
+    mainFrame.Position = UDim2.new(0, newX, 0, newY)
+end)
+
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = mainFrame.AbsoluteSize
+    local currentPos = mainFrame.AbsolutePosition
+    
+    local newX = math.clamp(currentPos.X, 0, math.max(0, screenSize.X - frameSize.X))
+    local newY = math.clamp(currentPos.Y, 0, math.max(0, screenSize.Y - frameSize.Y))
+    
+    mainFrame.Position = UDim2.new(0, newX, 0, newY)
+end)
+
+refreshList()
+print("✅ Gemini Fling by WestGO yüklendi")
