@@ -1,0 +1,557 @@
+local players = game:GetService("Players")
+local lplayer = players.LocalPlayer
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
+local userInputService = game:GetService("UserInputService")
+local workspace = game:GetService("Workspace")
+
+-- ============================================================
+-- 1. ANA UI SCREENGUI
+-- ============================================================
+local mainGui = Instance.new("ScreenGui")
+mainGui.Name = "GeminiSafeSit_Main"
+mainGui.ResetOnSpawn = false
+mainGui.IgnoreGuiInset = true
+mainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+mainGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+-- ============================================================
+-- 2. ALERT UI SCREENGUI
+-- ============================================================
+local alertGui = Instance.new("ScreenGui")
+alertGui.Name = "GeminiSafeSit_Alert"
+alertGui.ResetOnSpawn = false
+alertGui.IgnoreGuiInset = true
+alertGui.DisplayOrder = 9999
+alertGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+alertGui.Enabled = false
+alertGui.Parent = lplayer:WaitForChild("PlayerGui")
+
+-- ============================================================
+-- 3. ANA PANEL
+-- ============================================================
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainPanel"
+mainFrame.Size = UDim2.new(0, 380, 0, 520)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = mainGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 20)
+
+-- HEADER
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 60)
+header.BackgroundTransparency = 1
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Text = "head Sit"
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.new(0, 20, 0, 0)
+title.Font = Enum.Font.BuilderSansBold
+title.TextSize = 22
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+title.Parent = header
+
+-- Butonlar
+local minBtn = Instance.new("TextButton")
+minBtn.Name = "MinimizeBtn"
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -80, 0, 15)
+minBtn.BackgroundColor3 = Color3.fromRGB(255, 159, 10)
+minBtn.Text = "−"
+minBtn.TextColor3 = Color3.new(1,1,1)
+minBtn.Font = Enum.Font.BuilderSansBold
+minBtn.TextSize = 20
+minBtn.Parent = mainFrame
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1, 0)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 15)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 58)
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.BuilderSansBold
+closeBtn.TextSize = 20
+closeBtn.Parent = mainFrame
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+-- Scroll Frame
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "PlayerList"
+scroll.Size = UDim2.new(1, -20, 1, -80)
+scroll.Position = UDim2.new(0, 10, 0, 70)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 4
+scroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 8)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 5)
+padding.PaddingBottom = UDim.new(0, 5)
+padding.Parent = scroll
+
+-- ============================================================
+-- 4. ALERT PANEL
+-- ============================================================
+local overlay = Instance.new("Frame")
+overlay.Name = "Overlay"
+overlay.Size = UDim2.new(1, 0, 1, 0)
+overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+overlay.BackgroundTransparency = 1
+overlay.BorderSizePixel = 0
+overlay.Active = true
+overlay.Parent = alertGui
+
+local alertBox = Instance.new("Frame")
+alertBox.Name = "AlertBox"
+alertBox.Size = UDim2.new(0, 320, 0, 200)
+alertBox.Position = UDim2.new(0.5, -160, 0.5, -100)
+alertBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+alertBox.BorderSizePixel = 0
+alertBox.Active = true
+alertBox.Parent = alertGui
+
+Instance.new("UICorner", alertBox).CornerRadius = UDim.new(0, 16)
+
+local alertTitle = Instance.new("TextLabel")
+alertTitle.Text = "Paneli Kapat"
+alertTitle.Size = UDim2.new(1, 0, 0, 50)
+alertTitle.Position = UDim2.new(0, 0, 0, 15)
+alertTitle.Font = Enum.Font.BuilderSansBold
+alertTitle.TextSize = 20
+alertTitle.TextColor3 = Color3.new(1, 1, 1)
+alertTitle.BackgroundTransparency = 1
+alertTitle.Parent = alertBox
+
+local alertMsg = Instance.new("TextLabel")
+alertMsg.Text = "paneli kapatmak istediğinize emin misiniz?"
+alertMsg.Size = UDim2.new(1, -40, 0, 70)
+alertMsg.Position = UDim2.new(0, 20, 0, 65)
+alertMsg.Font = Enum.Font.BuilderSansMedium
+alertMsg.TextSize = 16
+alertMsg.TextColor3 = Color3.fromRGB(200, 200, 200)
+alertMsg.TextWrapped = true
+alertMsg.TextXAlignment = Enum.TextXAlignment.Center
+alertMsg.BackgroundTransparency = 1
+alertMsg.Parent = alertBox
+
+local line = Instance.new("Frame")
+line.Size = UDim2.new(1, 0, 0, 1)
+line.Position = UDim2.new(0, 0, 1, -50)
+line.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+line.BorderSizePixel = 0
+line.Parent = alertBox
+
+local cancelBtn = Instance.new("TextButton")
+cancelBtn.Text = "Vazgeç"
+cancelBtn.Size = UDim2.new(0.5, 0, 0, 50)
+cancelBtn.Position = UDim2.new(0, 0, 1, -50)
+cancelBtn.Font = Enum.Font.BuilderSansMedium
+cancelBtn.TextSize = 17
+cancelBtn.TextColor3 = Color3.fromRGB(0, 122, 255)
+cancelBtn.BackgroundTransparency = 1
+cancelBtn.Parent = alertBox
+
+local confirmBtn = Instance.new("TextButton")
+confirmBtn.Text = "Kapat"
+confirmBtn.Size = UDim2.new(0.5, 0, 0, 50)
+confirmBtn.Position = UDim2.new(0.5, 0, 1, -50)
+confirmBtn.Font = Enum.Font.BuilderSansBold
+confirmBtn.TextSize = 17
+confirmBtn.TextColor3 = Color3.fromRGB(255, 69, 58)
+confirmBtn.BackgroundTransparency = 1
+confirmBtn.Parent = alertBox
+
+local vLine = Instance.new("Frame")
+vLine.Size = UDim2.new(0, 1, 0, 50)
+vLine.Position = UDim2.new(0.5, 0, 1, -50)
+vLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+vLine.BorderSizePixel = 0
+vLine.Parent = alertBox
+
+-- ============================================================
+-- 5. DEĞİŞKENLER
+-- ============================================================
+local targetPlayer = nil
+local connection = nil
+local invisiblePlatform = nil
+local isMinimized = false
+local isAlertOpen = false
+local playerRows = {}
+
+-- ============================================================
+-- 6. FONKSİYONLAR
+-- ============================================================
+
+local function getAvatarUrl(userId)
+    return "https://www.roblox.com/headshot-thumbnail/image?userId=" .. userId .. "&width=150&height=150&format=png"
+end
+
+-- Aktif hedefin rengini yeşil yap (liste yenilendiğinde çağrılacak)
+local function highlightActiveTarget()
+    if targetPlayer and playerRows[targetPlayer] then
+        local row = playerRows[targetPlayer]
+        row.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        
+        local statusDot = row:FindFirstChild("StatusDot")
+        if statusDot then
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+        end
+    end
+end
+
+-- by WestGO yazısı
+local westGoLabel = Instance.new("TextLabel")
+westGoLabel.Name = "WestGOLabel"
+westGoLabel.Text = "by WestGO"
+westGoLabel.Size = UDim2.new(0, 100, 0, 20)
+westGoLabel.Position = UDim2.new(0, 20, 0, 40)
+westGoLabel.Font = Enum.Font.BuilderSansMedium
+westGoLabel.TextSize = 12
+westGoLabel.TextColor3 = Color3.fromRGB(255, 159, 10)
+westGoLabel.TextXAlignment = Enum.TextXAlignment.Left
+westGoLabel.BackgroundTransparency = 1
+westGoLabel.Parent = header
+
+
+
+local function stopFollowing()
+    if not targetPlayer then return end
+    
+    if playerRows[targetPlayer] then
+        local row = playerRows[targetPlayer]
+        tweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
+        
+        local statusDot = row:FindFirstChild("StatusDot")
+        if statusDot then
+            statusDot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        end
+    end
+    
+    targetPlayer = nil
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+    if invisiblePlatform then
+        invisiblePlatform:Destroy()
+        invisiblePlatform = nil
+    end
+    if lplayer.Character and lplayer.Character:FindFirstChild("Humanoid") then
+        lplayer.Character.Humanoid.PlatformStand = false
+        lplayer.Character.Humanoid.Sit = false
+    end
+end
+
+local function startFollowing(target)
+    stopFollowing()
+    targetPlayer = target
+    
+    if playerRows[target] then
+        local row = playerRows[target]
+        tweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 80, 40)}):Play()
+        
+        local statusDot = row:FindFirstChild("StatusDot")
+        if statusDot then
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+        end
+    end
+    
+    invisiblePlatform = Instance.new("Part")
+    invisiblePlatform.Name = "SafePlatform"
+    invisiblePlatform.Size = Vector3.new(4, 0.5, 4)
+    invisiblePlatform.Transparency = 1
+    invisiblePlatform.Anchored = true
+    invisiblePlatform.CanCollide = true
+    invisiblePlatform.Parent = workspace
+    
+    connection = runService.PostSimulation:Connect(function()
+        if not targetPlayer or not targetPlayer.Character or not lplayer.Character then
+            stopFollowing()
+            return
+        end
+        
+        local targetChar = targetPlayer.Character
+        local myChar = lplayer.Character
+        
+        if targetChar:FindFirstChild("HumanoidRootPart") and myChar:FindFirstChild("Humanoid") then
+            local hrp = targetChar.HumanoidRootPart
+            local pos = hrp.CFrame * CFrame.new(0, 3.5, 0)
+            
+            invisiblePlatform.CFrame = pos * CFrame.new(0, -1.5, 0)
+            myChar:PivotTo(pos)
+            myChar.Humanoid.Sit = true
+        end
+    end)
+end
+
+local function toggleFollow(target)
+    if targetPlayer == target then
+        stopFollowing()
+    else
+        startFollowing(target)
+    end
+end
+
+local function refreshList()
+    -- Önce tüm satırları temizle
+    for _, v in pairs(scroll:GetChildren()) do
+        if v:IsA("Frame") or v:IsA("TextButton") then
+            v:Destroy()
+        end
+    end
+    table.clear(playerRows)
+    
+    -- Yeni oyuncuları ekle
+    for _, p in pairs(players:GetPlayers()) do
+        if p ~= lplayer then
+            local row = Instance.new("TextButton")
+            row.Name = p.Name .. "_Row"
+            row.Size = UDim2.new(1, -10, 0, 70)
+            row.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            row.Text = ""
+            row.AutoButtonColor = false
+            row.LayoutOrder = #scroll:GetChildren()
+            row.Parent = scroll
+            
+            playerRows[p] = row
+            
+            Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+            
+            local avatarImg = Instance.new("ImageLabel")
+            avatarImg.Name = "Avatar"
+            avatarImg.Size = UDim2.new(0, 50, 0, 50)
+            avatarImg.Position = UDim2.new(0, 10, 0.5, -25)
+            avatarImg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            avatarImg.BorderSizePixel = 0
+            avatarImg.Image = getAvatarUrl(p.UserId)
+            avatarImg.Parent = row
+            Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(1, 0)
+            
+            local displayName = Instance.new("TextLabel")
+            displayName.Name = "DisplayName"
+            displayName.Text = p.DisplayName
+            displayName.Size = UDim2.new(1, -80, 0, 25)
+            displayName.Position = UDim2.new(0, 70, 0, 10)
+            displayName.Font = Enum.Font.BuilderSansBold
+            displayName.TextSize = 16
+            displayName.TextColor3 = Color3.new(1, 1, 1)
+            displayName.TextXAlignment = Enum.TextXAlignment.Left
+            displayName.BackgroundTransparency = 1
+            displayName.Parent = row
+            
+            local userName = Instance.new("TextLabel")
+            userName.Name = "UserName"
+            userName.Text = "@" .. p.Name
+            userName.Size = UDim2.new(1, -80, 0, 20)
+            userName.Position = UDim2.new(0, 70, 0, 35)
+            userName.Font = Enum.Font.BuilderSansMedium
+            userName.TextSize = 14
+            userName.TextColor3 = Color3.fromRGB(150, 150, 150)
+            userName.TextXAlignment = Enum.TextXAlignment.Left
+            userName.BackgroundTransparency = 1
+            userName.Parent = row
+            
+            local statusDot = Instance.new("Frame")
+            statusDot.Name = "StatusDot"
+            statusDot.Size = UDim2.new(0, 8, 0, 8)
+            statusDot.Position = UDim2.new(1, -20, 0.5, -4)
+            statusDot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            statusDot.BorderSizePixel = 0
+            statusDot.Parent = row
+            Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+            
+            row.MouseEnter:Connect(function()
+                if targetPlayer ~= p then
+                    tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+                end
+            end)
+            
+            row.MouseLeave:Connect(function()
+                if targetPlayer ~= p then
+                    tweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
+                end
+            end)
+            
+            row.MouseButton1Click:Connect(function()
+                toggleFollow(p)
+            end)
+        end
+    end
+    
+    -- LİSTE YENİLENDİKTEN SONRA AKTİF HEDEFİ YENİDEN YEŞİL YAP
+    highlightActiveTarget()
+end
+
+local function showAlert()
+    if isAlertOpen then return end
+    isAlertOpen = true
+    
+    alertBox.Position = UDim2.new(0.5, -160, 0.5, -80)
+    alertBox.BackgroundTransparency = 1
+    overlay.BackgroundTransparency = 1
+    
+    alertGui.Enabled = true
+    
+    tweenService:Create(overlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+    tweenService:Create(alertBox, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+        Position = UDim2.new(0.5, -160, 0.5, -100),
+        BackgroundTransparency = 0
+    }):Play()
+end
+
+local function hideAlert()
+    if not isAlertOpen then return end
+    
+    local t1 = tweenService:Create(overlay, TweenInfo.new(0.2), {BackgroundTransparency = 1})
+    local t2 = tweenService:Create(alertBox, TweenInfo.new(0.2), {
+        Position = UDim2.new(0.5, -160, 0.5, -80),
+        BackgroundTransparency = 1
+    })
+    
+    t1:Play()
+    t2:Play()
+    
+    t2.Completed:Connect(function()
+        alertGui.Enabled = false
+        isAlertOpen = false
+    end)
+end
+
+-- ============================================================
+-- 7. EVENTLER
+-- ============================================================
+
+minBtn.MouseButton1Click:Connect(function()
+    if isAlertOpen then return end
+    
+    isMinimized = not isMinimized
+    
+    if isMinimized then
+        tweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
+            Size = UDim2.new(0, 220, 0, 60)
+        }):Play()
+        scroll.Visible = false
+    else
+        scroll.Visible = true
+        tweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
+            Size = UDim2.new(0, 380, 0, 520)
+        }):Play()
+        task.wait(0.1)
+        refreshList() -- Bu çağrı sonrası highlightActiveTarget otomatik çalışacak
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(showAlert)
+
+cancelBtn.MouseButton1Click:Connect(hideAlert)
+
+confirmBtn.MouseButton1Click:Connect(function()
+    stopFollowing()
+    mainGui:Destroy()
+    alertGui:Destroy()
+end)
+
+overlay.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        hideAlert()
+    end
+end)
+
+players.PlayerAdded:Connect(function(p)
+    task.wait(1)
+    refreshList()
+end)
+
+players.PlayerRemoving:Connect(function(p)
+    if targetPlayer == p then
+        stopFollowing()
+    end
+    task.wait(0.5)
+    refreshList()
+end)
+
+-- ============================================================
+-- 8. SÜRÜKLEME
+-- ============================================================
+
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+
+header.InputBegan:Connect(function(input)
+    if isAlertOpen then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    
+    dragging = true
+    dragStart = input.Position
+    startPos = mainFrame.AbsolutePosition
+    
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end)
+
+header.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+    
+    dragInput = input
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input ~= dragInput then return end
+    
+    local currentPos = input.Position
+    local delta = currentPos - dragStart
+    
+    local newX = startPos.X + delta.X
+    local newY = startPos.Y + delta.Y
+    
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = mainFrame.AbsoluteSize
+    
+    newX = math.clamp(newX, 0, math.max(0, screenSize.X - frameSize.X))
+    newY = math.clamp(newY, 0, math.max(0, screenSize.Y - frameSize.Y))
+    
+    mainFrame.Position = UDim2.new(0, newX, 0, newY)
+end)
+
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = mainFrame.AbsoluteSize
+    local currentPos = mainFrame.AbsolutePosition
+    
+    local newX = math.clamp(currentPos.X, 0, math.max(0, screenSize.X - frameSize.X))
+    local newY = math.clamp(currentPos.Y, 0, math.max(0, screenSize.Y - frameSize.Y))
+    
+    mainFrame.Position = UDim2.new(0, newX, 0, newY)
+end)
+
+refreshList()
+print("✅ Gemini Safe Sit yüklendi")
