@@ -915,7 +915,7 @@ local function toggleMinimize()
         tweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart), {
             Size = minimizedSize
         }):Play()
-        title.Text = "⚡ WESTGO"
+        title.Text = ""
     else
         contentFrame.Visible = true
         tabContainer.Visible = true
