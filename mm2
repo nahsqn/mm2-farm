@@ -5,140 +5,431 @@ local runService = game:GetService("RunService")
 local tweenService = game:GetService("TweenService")
 local workspace = game:GetService("Workspace")
 
--- UI OLUŞTURMA
+-- EKRAN GUI OLUŞTURMA
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "iOSAdminPanel"
+screenGui.Name = "WESTGO_HUB_V3"
 screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 999999
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 screenGui.Parent = lplayer:WaitForChild("PlayerGui")
 
--- Ana Container (iOS Card Stili)
+local function getResponsiveScale()
+    local viewportSize = workspace.CurrentCamera.ViewportSize
+    return math.min(viewportSize.X / 1920, viewportSize.Y / 1080) * 1.3
+end
+local scale = getResponsiveScale()
+
+
+-- ORTA POZİSYON HESAPLAMA
+local function getCenterPosition(size)
+    local viewportSize = workspace.CurrentCamera.ViewportSize
+    local posX = (viewportSize.X - size.X.Offset) / 2
+    local posY = (viewportSize.Y - size.Y.Offset) / 2
+    return UDim2.new(0, posX, 0, posY)
+end
+
+-- iOS BİLDİRİM SİSTEMİ
+local notificationContainer = Instance.new("Frame")
+notificationContainer.Name = "iOSNotifications"
+notificationContainer.Size = UDim2.new(0, 400 * scale, 1, 0)
+notificationContainer.Position = UDim2.new(1, -420 * scale, 0, 20 * scale)
+notificationContainer.BackgroundTransparency = 1
+notificationContainer.ZIndex = 10000
+notificationContainer.Parent = screenGui
+
+local notifLayout = Instance.new("UIListLayout")
+notifLayout.Padding = UDim.new(0, 10 * scale)
+notifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+notifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+notifLayout.Parent = notificationContainer
+
+local activeNotifications = {}
+
+local function showiOSNotification(title, message, duration, icon)
+    duration = duration or 2
+    icon = icon or "rbxassetid://6031071053"
+    
+    local notifId = #activeNotifications + 1
+    
+    local notifCard = Instance.new("Frame")
+    notifCard.Name = "Notif_" .. notifId
+    notifCard.Size = UDim2.new(0, 0, 0, 80 * scale)
+    notifCard.Position = UDim2.new(1, 0, 0, 0)
+    notifCard.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    notifCard.BackgroundTransparency = 0.1
+    notifCard.BorderSizePixel = 0
+    notifCard.ZIndex = 10001
+    notifCard.ClipsDescendants = true
+    notifCard.Parent = notificationContainer
+    
+    local blur = Instance.new("ImageLabel")
+    blur.Name = "Blur"
+    blur.Size = UDim2.new(1, 20, 1, 20)
+    blur.Position = UDim2.new(0, -10, 0, -10)
+    blur.BackgroundTransparency = 1
+    blur.Image = "rbxassetid://5554236805"
+    blur.ImageColor3 = Color3.fromRGB(40, 40, 45)
+    blur.ImageTransparency = 0.3
+    blur.ScaleType = Enum.ScaleType.Slice
+    blur.SliceCenter = Rect.new(20, 20, 280, 280)
+    blur.ZIndex = 10001
+    blur.Parent = notifCard
+    
+    local cardCorner = Instance.new("UICorner")
+    cardCorner.CornerRadius = UDim.new(0, 20 * scale)
+    cardCorner.Parent = notifCard
+    
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(255, 255, 255)
+    border.Transparency = 0.9
+    border.Thickness = 1
+    border.Parent = notifCard
+    
+    local iconContainer = Instance.new("Frame")
+    iconContainer.Size = UDim2.new(0, 50 * scale, 0, 50 * scale)
+    iconContainer.Position = UDim2.new(0, 15 * scale, 0.5, -25 * scale)
+    iconContainer.BackgroundColor3 = Color3.fromRGB(80, 70, 230)
+    iconContainer.BorderSizePixel = 0
+    iconContainer.ZIndex = 10002
+    iconContainer.Parent = notifCard
+    
+    local iconCorner = Instance.new("UICorner")
+    iconCorner.CornerRadius = UDim.new(0, 12 * scale)
+    iconCorner.Parent = iconContainer
+    
+    local iconImg = Instance.new("ImageLabel")
+    iconImg.Size = UDim2.new(0, 30 * scale, 0, 30 * scale)
+    iconImg.Position = UDim2.new(0.5, -15 * scale, 0.5, -15 * scale)
+    iconImg.BackgroundTransparency = 1
+    iconImg.Image = icon
+    iconImg.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    iconImg.ZIndex = 10003
+    iconImg.Parent = iconContainer
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -80 * scale, 0, 25 * scale)
+    titleLabel.Position = UDim2.new(0, 75 * scale, 0, 15 * scale)
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 16 * scale
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.ZIndex = 10002
+    titleLabel.Parent = notifCard
+    
+    local msgLabel = Instance.new("TextLabel")
+    msgLabel.Size = UDim2.new(1, -80 * scale, 0, 35 * scale)
+    msgLabel.Position = UDim2.new(0, 75 * scale, 0, 40 * scale)
+    msgLabel.Text = message
+    msgLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+    msgLabel.TextSize = 13 * scale
+    msgLabel.Font = Enum.Font.GothamMedium
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    msgLabel.TextWrapped = true
+    msgLabel.ZIndex = 10002
+    msgLabel.Parent = notifCard
+    
+    table.insert(activeNotifications, notifCard)
+    
+    tweenService:Create(notifCard, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 350 * scale, 0, 80 * scale)
+    }):Play()
+    
+    local progressBar = Instance.new("Frame")
+    progressBar.Size = UDim2.new(1, 0, 0, 3 * scale)
+    progressBar.Position = UDim2.new(0, 0, 1, -3 * scale)
+    progressBar.BackgroundColor3 = Color3.fromRGB(80, 70, 230)
+    progressBar.BorderSizePixel = 0
+    progressBar.ZIndex = 10003
+    progressBar.Parent = notifCard
+    
+    tweenService:Create(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 3 * scale)
+    }):Play()
+    
+    task.delay(duration, function()
+        tweenService:Create(notifCard, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 80 * scale),
+            Position = UDim2.new(1, 0, 0, 0)
+        }):Play()
+        
+        task.delay(0.4, function()
+            notifCard:Destroy()
+            for i, v in ipairs(activeNotifications) do
+                if v == notifCard then
+                    table.remove(activeNotifications, i)
+                    break
+                end
+            end
+        end)
+    end)
+    
+    notifCard.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            tweenService:Create(notifCard, TweenInfo.new(0.3), {
+                Size = UDim2.new(0, 0, 0, 80 * scale)
+            }):Play()
+            task.delay(0.3, function() notifCard:Destroy() end)
+        end
+    end)
+end
+
+
+-- by WestGO yazısı
+local westGoLabel = Instance.new("TextLabel")
+westGoLabel.Name = "WestGOLabel"
+westGoLabel.Text = "by WestGO"
+westGoLabel.Size = UDim2.new(0, 100, 0, 20)
+westGoLabel.Position = UDim2.new(0, 20, 0, 40)
+westGoLabel.Font = Enum.Font.BuilderSansMedium
+westGoLabel.TextSize = 12
+westGoLabel.TextColor3 = Color3.fromRGB(255, 159, 10)
+westGoLabel.TextXAlignment = Enum.TextXAlignment.Left
+westGoLabel.BackgroundTransparency = 1
+westGoLabel.Parent = header
+
+-- ANA PANEL
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 360, 0, 500)
-mainFrame.Position = UDim2.new(0.5, -180, 0.5, -250)
-mainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-mainFrame.BackgroundTransparency = 0.05
+mainFrame.Size = UDim2.new(0, 700 * scale, 0, 420 * scale)
+mainFrame.Position = getCenterPosition(UDim2.new(0, 700 * scale, 0, 420 * scale))
+mainFrame.AnchorPoint = Vector2.new(0, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
 mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 100
 mainFrame.Parent = screenGui
 
--- iOS Yuvarlak Köşeler
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 24)
+corner.CornerRadius = UDim.new(0, 20 * scale)
 corner.Parent = mainFrame
 
--- Blur Efekti (iOS Glassmorphism)
-local blur = Instance.new("ImageLabel")
-blur.Name = "Blur"
-blur.Size = UDim2.new(1, 40, 1, 40)
-blur.Position = UDim2.new(0, -20, 0, -20)
-blur.BackgroundTransparency = 1
-blur.Image = "rbxassetid://5554236805"
-blur.ImageColor3 = Color3.fromRGB(0, 0, 0)
-blur.ImageTransparency = 0.7
-blur.ScaleType = Enum.ScaleType.Slice
-blur.SliceCenter = Rect.new(20, 20, 280, 280)
-blur.Parent = mainFrame
-
--- Header
+-- HEADER
 local header = Instance.new("Frame")
-header.Name = "Header"
-header.Size = UDim2.new(1, 0, 0, 60)
-header.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-header.BackgroundTransparency = 0.5
-header.BorderSizePixel = 0
-header.ZIndex = 10
+header.Size = UDim2.new(1, 0, 0, 50 * scale)
+header.BackgroundTransparency = 1
+header.ZIndex = 101
 header.Parent = mainFrame
 
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 24)
-headerCorner.Parent = header
+-- OYUNCU PROFİLİ (UI İÇİNDE SOL ÜST)
+local playerProfile = Instance.new("Frame")
+playerProfile.Name = "PlayerProfile"
+playerProfile.Size = UDim2.new(0, 180 * scale, 0, 40 * scale)
+playerProfile.Position = UDim2.new(0, 15 * scale, 0, 5 * scale)
+playerProfile.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+playerProfile.BackgroundTransparency = 0.3
+playerProfile.BorderSizePixel = 0
+playerProfile.ZIndex = 102
+playerProfile.Parent = header
 
--- Header Mask (Alt köşeleri düz yap)
-local headerMask = Instance.new("Frame")
-headerMask.Size = UDim2.new(1, 0, 0.5, 0)
-headerMask.Position = UDim2.new(0, 0, 0.5, 0)
-headerMask.BackgroundColor3 = header.BackgroundColor3
-headerMask.BackgroundTransparency = header.BackgroundTransparency
-headerMask.BorderSizePixel = 0
-headerMask.ZIndex = 10
-headerMask.Parent = header
+local profileCorner = Instance.new("UICorner")
+profileCorner.CornerRadius = UDim.new(0, 12 * scale)
+profileCorner.Parent = playerProfile
 
+-- Profil Resmi
+local profileImage = Instance.new("ImageLabel")
+profileImage.Name = "ProfileImage"
+profileImage.Size = UDim2.new(0, 32 * scale, 0, 32 * scale)
+profileImage.Position = UDim2.new(0, 4 * scale, 0.5, -16 * scale)
+profileImage.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+profileImage.BorderSizePixel = 0
+profileImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. lplayer.UserId .. "&w=150&h=150"
+profileImage.ZIndex = 103
+profileImage.Parent = playerProfile
+
+local imageCorner = Instance.new("UICorner")
+imageCorner.CornerRadius = UDim.new(1, 0)
+imageCorner.Parent = profileImage
+
+-- Online durum noktası
+local statusDot = Instance.new("Frame")
+statusDot.Name = "StatusDot"
+statusDot.Size = UDim2.new(0, 10 * scale, 0, 10 * scale)
+statusDot.Position = UDim2.new(0, 28 * scale, 0.5, 10 * scale)
+statusDot.BackgroundColor3 = Color3.fromRGB(52, 199, 89)
+statusDot.BorderSizePixel = 0
+statusDot.ZIndex = 104
+statusDot.Parent = playerProfile
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(1, 0)
+statusCorner.Parent = statusDot
+
+local statusStroke = Instance.new("UIStroke")
+statusStroke.Color = Color3.fromRGB(30, 30, 40)
+statusStroke.Thickness = 2
+statusStroke.Parent = statusDot
+
+-- İsim container
+local nameContainer = Instance.new("Frame")
+nameContainer.Size = UDim2.new(1, -45 * scale, 1, 0)
+nameContainer.Position = UDim2.new(0, 42 * scale, 0, 0)
+nameContainer.BackgroundTransparency = 1
+nameContainer.ZIndex = 103
+nameContainer.Parent = playerProfile
+
+-- Görünen Ad
+local displayNameLabel = Instance.new("TextLabel")
+displayNameLabel.Name = "DisplayName"
+displayNameLabel.Size = UDim2.new(1, 0, 0, 20 * scale)
+displayNameLabel.Position = UDim2.new(0, 0, 0, 2 * scale)
+displayNameLabel.Text = lplayer.DisplayName
+displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+displayNameLabel.TextSize = 14 * scale
+displayNameLabel.Font = Enum.Font.GothamBold
+displayNameLabel.BackgroundTransparency = 1
+displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+displayNameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+displayNameLabel.ZIndex = 103
+displayNameLabel.Parent = nameContainer
+
+-- Kullanıcı Adı
+local usernameLabel = Instance.new("TextLabel")
+usernameLabel.Name = "Username"
+usernameLabel.Size = UDim2.new(1, 0, 0, 16 * scale)
+usernameLabel.Position = UDim2.new(0, 0, 0, 22 * scale)
+usernameLabel.Text = "@" .. lplayer.Name
+usernameLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+usernameLabel.TextSize = 11 * scale
+usernameLabel.Font = Enum.Font.GothamMedium
+usernameLabel.BackgroundTransparency = 1
+usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+usernameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+usernameLabel.ZIndex = 103
+usernameLabel.Parent = nameContainer
+
+-- BAŞLIK (SAĞ TARAF)
 local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, -40, 1, 0)
-title.Position = UDim2.new(0, 20, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "Admin Control"
+title.Size = UDim2.new(1, -220 * scale, 1, 0)
+title.Position = UDim2.new(0, 200 * scale, 0, 0)
+title.Text = "by WestGO"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 22
+title.TextSize = 18 * scale
 title.Font = Enum.Font.GothamBold
+title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 11
+title.ZIndex = 102
 title.Parent = header
 
--- Sürükleme Handle
-local dragHandle = Instance.new("TextButton")
-dragHandle.Name = "DragHandle"
-dragHandle.Size = UDim2.new(0, 40, 0, 5)
-dragHandle.Position = UDim2.new(0.5, -20, 0, 8)
-dragHandle.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-dragHandle.BorderSizePixel = 0
-dragHandle.Text = ""
-dragHandle.AutoButtonColor = false
-dragHandle.ZIndex = 11
-dragHandle.Parent = header
+-- SEKME BUTONLARI
+local tabContainer = Instance.new("Frame")
+tabContainer.Size = UDim2.new(1, -40, 0, 40 * scale)
+tabContainer.Position = UDim2.new(0, 20, 0, 50 * scale)
+tabContainer.BackgroundTransparency = 1
+tabContainer.ZIndex = 101
+tabContainer.Parent = mainFrame
 
-local dragCorner = Instance.new("UICorner")
-dragCorner.CornerRadius = UDim.new(1, 0)
-dragCorner.Parent = dragHandle
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.Padding = UDim.new(0, 8 * scale)
+tabLayout.Parent = tabContainer
 
--- KAPATMA BUTONU
-local closeBtn = Instance.new("TextButton")
-closeBtn.Name = "CloseBtn"
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -38, 0, 16)
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 58)
-closeBtn.BorderSizePixel = 0
-closeBtn.Text = "×"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextSize = 22
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.ZIndex = 11
+local tabs = {}
+local currentTab = "Misc"
 
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(1, 0)
-closeCorner.Parent = closeBtn
+local function createTab(name)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Name = name .. "Tab"
+    tabBtn.Size = UDim2.new(0, 80 * scale, 1, 0)
+    tabBtn.Text = name
+    tabBtn.TextColor3 = name == currentTab and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(120, 120, 130)
+    tabBtn.BackgroundColor3 = name == currentTab and Color3.fromRGB(80, 70, 230) or Color3.fromRGB(30, 30, 40)
+    tabBtn.Font = Enum.Font.GothamBold
+    tabBtn.TextSize = 14 * scale
+    tabBtn.BorderSizePixel = 0
+    tabBtn.ZIndex = 102
+    tabBtn.Parent = tabContainer
+    
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 10 * scale)
+    tabCorner.Parent = tabBtn
+    
+    tabs[name] = tabBtn
+    return tabBtn
+end
 
-closeBtn.Parent = header
+createTab("Misc")
+createTab("Player")
+createTab("ESP")
+createTab("Visuals")
 
--- SCROLLABLE CONTENT
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Name = "ScrollContent"
-scrollFrame.Size = UDim2.new(1, -32, 1, -76)
-scrollFrame.Position = UDim2.new(0, 16, 0, 68)
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.BorderSizePixel = 0
-scrollFrame.ScrollBarThickness = 4
-scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 120, 120)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
-scrollFrame.Parent = mainFrame
+-- İÇERİK ALANLARI
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -30, 1, -110 * scale)
+contentFrame.Position = UDim2.new(0, 15, 0, 100 * scale)
+contentFrame.BackgroundTransparency = 1
+contentFrame.ZIndex = 101
+contentFrame.Parent = mainFrame
 
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = scrollFrame
+local tabContents = {}
 
--- DURUM DEĞİŞKENLERİ
+local function createTabContent(name)
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = name .. "Content"
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 2
+    scroll.Visible = name == currentTab
+    scroll.ZIndex = 101
+    scroll.Parent = contentFrame
+    
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = UDim2.new(0, 210 * scale, 0, 70 * scale)
+    grid.CellPadding = UDim2.new(0, 12 * scale, 0, 12 * scale)
+    grid.Parent = scroll
+    
+    tabContents[name] = scroll
+    return scroll, grid
+end
+
+local miscScroll, miscGrid = createTabContent("Misc")
+local playerScroll, playerGrid = createTabContent("Player")
+local espScroll, espGrid = createTabContent("ESP")
+local visualScroll, visualGrid = createTabContent("Visuals")
+
+-- SEKME DEĞİŞTİRME
+local function switchTab(newTab)
+    if newTab == currentTab then return end
+    
+    local oldBtn = tabs[currentTab]
+    tweenService:Create(oldBtn, TweenInfo.new(0.3), {
+        BackgroundColor3 = Color3.fromRGB(30, 30, 40),
+        TextColor3 = Color3.fromRGB(120, 120, 130)
+    }):Play()
+    
+    tabContents[currentTab].Visible = false
+    
+    currentTab = newTab
+    local newBtn = tabs[newTab]
+    tweenService:Create(newBtn, TweenInfo.new(0.3), {
+        BackgroundColor3 = Color3.fromRGB(80, 70, 230),
+        TextColor3 = Color3.fromRGB(255, 255, 255)
+    }):Play()
+    
+    tabContents[newTab].Visible = true
+end
+
+for name, btn in pairs(tabs) do
+    btn.MouseButton1Click:Connect(function()
+        switchTab(name)
+    end)
+end
+
+--- HİLE SİSTEMLERİ DEĞİŞKENLERİ ---
 local states = {
-    platform = false,
-    noclip = false,
-    teleport = false,
     fly = false,
+    noclip = false,
+    platform = false,
+    teleport = false,
     maxZoom = false,
     antiFling = false,
     playerESP = false,
     gunESP = false,
-    specialESP = false
+    specialESP = false,
+    gunMagnet = false
 }
 
 -- PLATFORM AYARLARI
@@ -192,7 +483,6 @@ local function createTeleportTool()
 end
 
 local function removeTeleportTool()
-    states.teleport = false
     if tpToolRef then
         pcall(function() tpToolRef:Destroy() end)
         tpToolRef = nil
@@ -227,20 +517,17 @@ local function enableAntiFling()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
-    -- Mevcut body position/gyro varsa temizle
     if antiFlingBodyPos then antiFlingBodyPos:Destroy() end
     if antiFlingBodyGyro then antiFlingBodyGyro:Destroy() end
     
-    -- BodyPosition ile pozisyonu sabitle (sadece Y ekseni için yumuşak sabitleme)
     antiFlingBodyPos = Instance.new("BodyPosition")
     antiFlingBodyPos.Name = "AntiFlingBP"
-    antiFlingBodyPos.MaxForce = Vector3.new(0, math.huge, 0) -- Sadece dikey
+    antiFlingBodyPos.MaxForce = Vector3.new(0, math.huge, 0)
     antiFlingBodyPos.Position = root.Position
-    antiFlingBodyPos.D = 500 -- Damping
-    antiFlingBodyPos.P = 5000 -- Power
+    antiFlingBodyPos.D = 500
+    antiFlingBodyPos.P = 5000
     antiFlingBodyPos.Parent = root
     
-    -- BodyGyro ile rotasyonu sabitle
     antiFlingBodyGyro = Instance.new("BodyGyro")
     antiFlingBodyGyro.Name = "AntiFlingBG"
     antiFlingBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
@@ -249,16 +536,14 @@ local function enableAntiFling()
     antiFlingBodyGyro.P = 10000
     antiFlingBodyGyro.Parent = root
     
-    -- Her frame pozisyonu güncelle (sadece çok hızlı hareketlerde müdahale)
     antiFlingConnection = runService.Heartbeat:Connect(function()
         if not states.antiFling then return end
         if not lplayer.Character then return end
         local currentRoot = lplayer.Character:FindFirstChild("HumanoidRootPart")
         if not currentRoot then return end
         
-        -- Çok hızlı hareket varsa (fling) pozisyonu sıfırla
         local velocity = currentRoot.Velocity
-        if velocity.Magnitude > 150 then -- Fling tespiti
+        if velocity.Magnitude > 150 then
             currentRoot.Velocity = Vector3.new(0, 0, 0)
             currentRoot.RotVelocity = Vector3.new(0, 0, 0)
             if antiFlingBodyPos then
@@ -266,7 +551,6 @@ local function enableAntiFling()
             end
         end
         
-        -- BodyPosition'u güncelle (yumuşak takip)
         if antiFlingBodyPos then
             antiFlingBodyPos.Position = currentRoot.Position
         end
@@ -277,7 +561,6 @@ local function enableAntiFling()
 end
 
 local function disableAntiFling()
-    states.antiFling = false
     if antiFlingConnection then
         antiFlingConnection:Disconnect()
         antiFlingConnection = nil
@@ -292,8 +575,26 @@ local function disableAntiFling()
     end
 end
 
+-- GUN MAGNET FONKSİYONU
+local function collectGuns()
+    local char = lplayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, gun in pairs(workspace:GetDescendants()) do
+        if gun.Name == "GunDrop" and gun:IsA("BasePart") then
+            gun.CanCollide = false
+            gun.Anchored = false
+            gun.CFrame = hrp.CFrame
+            gun.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+    
+    showiOSNotification("🔫 Gun Magnet", "Tüm silahlar çekildi!", 2, "rbxassetid://6034287518")
+end
+
 -- ESP AYARLARI
-local specialUserId = 4662465306
+local specialUserId = 
 
 local function getPlayerStatus(p)
     local character = p.Character
@@ -302,15 +603,15 @@ local function getPlayerStatus(p)
     local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or (character and character:FindFirstChild("Knife"))
     local hasGun = (backpack and backpack:FindFirstChild("Gun")) or (character and character:FindFirstChild("Gun"))
     
-    local color = Color3.fromRGB(0, 255, 0)
+    local color = Color3.fromRGB(16, 185, 129)
     local icon = ""
     
     if p.UserId == specialUserId then
-        color = Color3.fromRGB(255, 0, 255)
+        color = Color3.fromRGB(139, 92, 246)
     elseif hasKnife then
-        color = Color3.fromRGB(255, 0, 0)
+        color = Color3.fromRGB(239, 68, 68)
     elseif hasGun then
-        color = Color3.fromRGB(0, 150, 255)
+        color = Color3.fromRGB(59, 130, 246)
     end
     
     if hasKnife then icon = "🔪" end
@@ -363,7 +664,7 @@ local function applyGunESP(obj)
     if obj.Name == "GunDrop" and obj:IsA("BasePart") then
         local hl = obj:FindFirstChild("GunHighlight") or Instance.new("Highlight", obj)
         hl.Name = "GunHighlight"
-        hl.FillColor = Color3.fromRGB(255, 255, 0)
+        hl.FillColor = Color3.fromRGB(245, 158, 11)
         hl.FillTransparency = 0.4
         hl.OutlineColor = Color3.new(1, 1, 1)
         hl.Enabled = states.gunESP
@@ -384,104 +685,111 @@ local function applyGunESP(obj)
     end
 end
 
--- iOS SWITCH COMPONENT
-local function createSwitch(name, icon, color, callback)
+-- iOS TARZI FEATURE BUTONU (BİLDİRİMLİ)
+local function createiOSFeature(name, description, parent, iconId, callback)
     local container = Instance.new("Frame")
-    container.Name = name.."Container"
-    container.Size = UDim2.new(1, 0, 0, 60)
-    container.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-    container.BackgroundTransparency = 0.6
+    container.Size = UDim2.new(0, 210 * scale, 0, 70 * scale)
+    container.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     container.BorderSizePixel = 0
+    container.ZIndex = 102
     
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 16)
-    containerCorner.Parent = container
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 16 * scale)
+    corner.Parent = container
     
-    local iconFrame = Instance.new("Frame")
-    iconFrame.Size = UDim2.new(0, 36, 0, 36)
-    iconFrame.Position = UDim2.new(0, 14, 0.5, -18)
-    iconFrame.BackgroundColor3 = color or Color3.fromRGB(10, 132, 255)
-    iconFrame.BorderSizePixel = 0
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 25)
+    title.Position = UDim2.new(0, 12, 0, 8)
+    title.Text = name
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 15 * scale
+    title.Font = Enum.Font.GothamBold
+    title.BackgroundTransparency = 1
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 103
+    title.Parent = container
     
-    local iconCorner = Instance.new("UICorner")
-    iconCorner.CornerRadius = UDim.new(0, 10)
-    iconCorner.Parent = iconFrame
-    
-    local iconLabel = Instance.new("ImageLabel")
-    iconLabel.Size = UDim2.new(0, 22, 0, 22)
-    iconLabel.Position = UDim2.new(0.5, -11, 0.5, -11)
-    iconLabel.BackgroundTransparency = 1
-    iconLabel.Image = icon
-    iconLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    iconLabel.Parent = iconFrame
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -140, 1, 0)
-    label.Position = UDim2.new(0, 62, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = name
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 16
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    local desc = Instance.new("TextLabel")
+    desc.Size = UDim2.new(1, -20, 0, 20)
+    desc.Position = UDim2.new(0, 12, 0, 35)
+    desc.Text = description
+    desc.TextColor3 = Color3.fromRGB(150, 150, 160)
+    desc.TextSize = 11 * scale
+    desc.Font = Enum.Font.GothamMedium
+    desc.BackgroundTransparency = 1
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.ZIndex = 103
+    desc.Parent = container
     
     local switchBg = Instance.new("TextButton")
-    switchBg.Name = "Switch"
-    switchBg.Size = UDim2.new(0, 51, 0, 31)
-    switchBg.Position = UDim2.new(1, -66, 0.5, -15)
-    switchBg.BackgroundColor3 = Color3.fromRGB(120, 120, 128)
+    switchBg.Size = UDim2.new(0, 50 * scale, 0, 28 * scale)
+    switchBg.Position = UDim2.new(1, -62 * scale, 0.5, -14 * scale)
+    switchBg.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
     switchBg.BorderSizePixel = 0
     switchBg.Text = ""
     switchBg.AutoButtonColor = false
+    switchBg.ZIndex = 103
+    switchBg.Parent = container
     
     local switchCorner = Instance.new("UICorner")
     switchCorner.CornerRadius = UDim.new(1, 0)
     switchCorner.Parent = switchBg
     
     local circle = Instance.new("Frame")
-    circle.Name = "Circle"
-    circle.Size = UDim2.new(0, 27, 0, 27)
-    circle.Position = UDim2.new(0, 2, 0.5, -13)
+    circle.Size = UDim2.new(0, 24 * scale, 0, 24 * scale)
+    circle.Position = UDim2.new(0, 2 * scale, 0.5, -12 * scale)
     circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     circle.BorderSizePixel = 0
+    circle.ZIndex = 104
+    circle.Parent = switchBg
     
     local circleCorner = Instance.new("UICorner")
     circleCorner.CornerRadius = UDim.new(1, 0)
     circleCorner.Parent = circle
     
-    local glow = Instance.new("ImageLabel")
-    glow.Name = "Glow"
-    glow.Size = UDim2.new(1.5, 0, 1.5, 0)
-    glow.Position = UDim2.new(-0.25, 0, -0.25, 0)
-    glow.BackgroundTransparency = 1
-    glow.Image = "rbxassetid://5028857084"
-    glow.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    glow.ImageTransparency = 1
-    glow.Parent = circle
-    
-    circle.Parent = switchBg
-    switchBg.Parent = container
+    local shadow = Instance.new("ImageLabel")
+    shadow.Size = UDim2.new(1.2, 0, 1.2, 0)
+    shadow.Position = UDim2.new(-0.1, 0, -0.1, 0)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://6014261993"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.6
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(20, 20, 280, 280)
+    shadow.ZIndex = 103
+    shadow.Parent = circle
     
     local isOn = false
+    
     local function toggle()
         isOn = not isOn
         
-        local targetColor = isOn and Color3.fromRGB(48, 209, 88) or Color3.fromRGB(120, 120, 128)
-        local targetPos = isOn and UDim2.new(1, -29, 0.5, -13) or UDim2.new(0, 2, 0.5, -13)
+        local targetColor = isOn and Color3.fromRGB(52, 199, 89) or Color3.fromRGB(120, 120, 130)
+        local targetPos = isOn and UDim2.new(1, -26 * scale, 0.5, -12 * scale) or UDim2.new(0, 2 * scale, 0.5, -12 * scale)
         
-        tweenService:Create(switchBg, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        tweenService:Create(switchBg, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {
             BackgroundColor3 = targetColor
         }):Play()
         
-        tweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        tweenService:Create(circle, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {
             Position = targetPos
         }):Play()
         
+        tweenService:Create(circle, TweenInfo.new(0.1), {
+            Size = UDim2.new(0, 26 * scale, 0, 26 * scale)
+        }):Play()
+        
+        task.delay(0.1, function()
+            tweenService:Create(circle, TweenInfo.new(0.15), {
+                Size = UDim2.new(0, 24 * scale, 0, 24 * scale)
+            }):Play()
+        end)
+        
+        -- AKTİF/DEAKTİF BİLDİRİMİ
         if isOn then
-            tweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.8}):Play()
+            showiOSNotification("✅ " .. name, "Özellik aktif edildi", 2, iconId or "rbxassetid://6031071053")
         else
-            tweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 1}):Play()
+            showiOSNotification("❌ " .. name, "Özellik devre dışı bırakıldı", 2, iconId or "rbxassetid://6031071053")
         end
         
         callback(isOn)
@@ -489,136 +797,71 @@ local function createSwitch(name, icon, color, callback)
     
     switchBg.MouseButton1Click:Connect(toggle)
     
-    return container, toggle
+    container.MouseEnter:Connect(function()
+        tweenService:Create(container, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        }):Play()
+    end)
+    
+    container.MouseLeave:Connect(function()
+        tweenService:Create(container, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+        }):Play()
+    end)
+    
+    container.Parent = parent
+    return container
 end
 
--- SEKME BAŞLIKLARI
-local function createSection(titleText)
-    local section = Instance.new("TextLabel")
-    section.Size = UDim2.new(1, 0, 0, 25)
-    section.BackgroundTransparency = 1
-    section.Text = titleText
-    section.TextColor3 = Color3.fromRGB(120, 120, 120)
-    section.TextSize = 13
-    section.Font = Enum.Font.GothamBold
-    section.TextXAlignment = Enum.TextXAlignment.Left
-    return section
-end
-
--- MOVEMENT SEKMESİ
-local movementSection = createSection("MOVEMENT")
-movementSection.Parent = scrollFrame
-
-local platformSwitch = createSwitch("Platform", "rbxassetid://6031302918", Color3.fromRGB(10, 132, 255), function(on)
-    states.platform = on
-    if on then
-        platform.Parent = workspace
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Platform Aktif",
-            Text = "Görünmez zemin oluşturuldu",
-            Duration = 2
-        })
-    else
-        platform.Parent = nil
-    end
+-- MISC SEKMESİ
+createiOSFeature("Platform", "Görünmez zemin", miscScroll, "rbxassetid://6031302918", function(active)
+    states.platform = active
+    if active then platform.Parent = workspace else platform.Parent = nil end
 end)
-platformSwitch.Parent = scrollFrame
 
-local noclipSwitch = createSwitch("Noclip", "rbxassetid://6034281935", Color3.fromRGB(255, 159, 10), function(on)
-    states.noclip = on
-    if on then
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Noclip Aktif",
-            Text = "Duvarlardan geçebilirsiniz",
-            Duration = 2
-        })
-    end
+createiOSFeature("Noclip", "Duvarlardan geç", miscScroll, "rbxassetid://6034281935", function(active)
+    states.noclip = active
 end)
-noclipSwitch.Parent = scrollFrame
 
-local maxZoomSwitch = createSwitch("Max Zoom", "rbxassetid://6035067834", Color3.fromRGB(175, 82, 222), function(on)
-    states.maxZoom = on
-    if on then
+createiOSFeature("Teleport Tool", "Tıklayarak ışınlan", miscScroll, "rbxassetid://6034287525", function(active)
+    states.teleport = active
+    if active then createTeleportTool() else removeTeleportTool() end
+end)
+
+createiOSFeature("Max Zoom", "Sınırsız zoom", miscScroll, "rbxassetid://6035067834", function(active)
+    states.maxZoom = active
+    if active then
         lplayer.CameraMaxZoomDistance = 100000
         lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Max Zoom Aktif",
-            Text = "Kamera sınırsız uzaklaştırıldı",
-            Duration = 2
-        })
     else
         lplayer.CameraMaxZoomDistance = 128
         lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
     end
 end)
-maxZoomSwitch.Parent = scrollFrame
 
-local flySwitch = createSwitch("Fly", "rbxassetid://6035067836", Color3.fromRGB(255, 69, 58), function(on)
-    states.fly = on
+-- PLAYER SEKMESİ
+createiOSFeature("Fly", "Uçuş modu", playerScroll, "rbxassetid://6035067836", function(active)
+    states.fly = active
     local char = lplayer.Character
     if char and char:FindFirstChild("Humanoid") then
-        if on then
+        if active then
             char.Humanoid.PlatformStand = true
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "Fly Aktif",
-                Text = "Space/WASD ile uçun",
-                Duration = 2
-            })
         else
             char.Humanoid.PlatformStand = false
             char.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
     end
 end)
-flySwitch.Parent = scrollFrame
 
-local tpSwitch = createSwitch("Teleport", "rbxassetid://6034287525", Color3.fromRGB(48, 209, 88), function(on)
-    states.teleport = on
-    if on then
-        createTeleportTool()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Teleport Aktif",
-            Text = "Tool envanterine eklendi (Kalıcı)",
-            Duration = 2
-        })
-    else
-        removeTeleportTool()
-    end
+createiOSFeature("Anti Fling", "Fling koruması", playerScroll, "rbxassetid://6034281908", function(active)
+    states.antiFling = active
+    if active then enableAntiFling() else disableAntiFling() end
 end)
-tpSwitch.Parent = scrollFrame
-
--- PROTECTION SEKMESİ (YENİ)
-local protectionSection = createSection("PROTECTION")
-protectionSection.Parent = scrollFrame
-
--- ANTI-FLING (YENİ)
-local antiFlingSwitch = createSwitch("Anti Fling", "rbxassetid://6034281908", Color3.fromRGB(255, 149, 0), function(on)
-    states.antiFling = on
-    if on then
-        enableAntiFling()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Anti-Fling Aktif",
-            Text = "Fling atmalara karşı koruma açık",
-            Duration = 2
-        })
-    else
-        disableAntiFling()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Anti-Fling Kapalı",
-            Text = "Koruma devre dışı",
-            Duration = 2
-        })
-    end
-end)
-antiFlingSwitch.Parent = scrollFrame
 
 -- ESP SEKMESİ
-local espSection = createSection("ESP VISUALS")
-espSection.Parent = scrollFrame
-
-local playerESPSwitch = createSwitch("Player ESP", "rbxassetid://6031075931", Color3.fromRGB(255, 55, 95), function(on)
-    states.playerESP = on
-    if on then
+createiOSFeature("Player ESP", "Oyuncu görme", espScroll, "rbxassetid://6031075931", function(active)
+    states.playerESP = active
+    if active then
         for _, p in pairs(players:GetPlayers()) do
             if p ~= lplayer and p.Character then
                 local tag = p.Character:FindFirstChild("AdminESP") or createPlayerTag(p)
@@ -628,11 +871,6 @@ local playerESPSwitch = createSwitch("Player ESP", "rbxassetid://6031075931", Co
                 tag.Enabled = true
             end
         end
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Player ESP Aktif",
-            Text = "Oyuncuları görün",
-            Duration = 2
-        })
     else
         for _, p in pairs(players:GetPlayers()) do
             if p.Character then
@@ -642,21 +880,13 @@ local playerESPSwitch = createSwitch("Player ESP", "rbxassetid://6031075931", Co
         end
     end
 end)
-playerESPSwitch.Parent = scrollFrame
 
-local gunESPSwitch = createSwitch("Gun ESP", "rbxassetid://6034287518", Color3.fromRGB(255, 214, 10), function(on)
-    states.gunESP = on
-    if on then
+createiOSFeature("Gun ESP", "Silah görme", espScroll, "rbxassetid://6034287518", function(active)
+    states.gunESP = active
+    if active then
         for _, v in pairs(workspace:GetDescendants()) do
-            if v.Name == "GunDrop" then
-                applyGunESP(v)
-            end
+            if v.Name == "GunDrop" then applyGunESP(v) end
         end
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Gun ESP Aktif",
-            Text = "Yerdeki silahları görün",
-            Duration = 2
-        })
     else
         for _, v in pairs(workspace:GetDescendants()) do
             if v.Name == "GunHighlight" then v.Enabled = false end
@@ -664,94 +894,276 @@ local gunESPSwitch = createSwitch("Gun ESP", "rbxassetid://6034287518", Color3.f
         end
     end
 end)
-gunESPSwitch.Parent = scrollFrame
 
-local specialESPSwitch = createSwitch("Special User", "rbxassetid://6031071053", Color3.fromRGB(191, 90, 242), function(on)
-    states.specialESP = on
-    if on then
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Special ESP Aktif",
-            Text = "Özel kullanıcı vurgulandı",
-            Duration = 2
-        })
+createiOSFeature("Special ESP", "Özel kullanıcı", espScroll, "rbxassetid://6031071053", function(active)
+    states.specialESP = active
+end)
+
+createiOSFeature("Gun Magnet [G]", "G tuşu silah çek", espScroll, "rbxassetid://6034287518", function(active)
+    states.gunMagnet = active
+end)
+
+-- Canvas size güncelleme
+for _, scroll in pairs(tabContents) do
+    local layout = scroll:FindFirstChildOfClass("UIGridLayout") or scroll:FindFirstChildOfClass("UIListLayout")
+    if layout then
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+        end)
     end
-end)
-specialESPSwitch.Parent = scrollFrame
+end
 
--- CanvasSize otomatik ayarlama
-layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-end)
+-- KÜÇÜLTME/BÜYÜTME SİSTEMİ
+local isMinimized = false
+local originalSize = UDim2.new(0, 700 * scale, 0, 420 * scale)
+local minimizedSize = UDim2.new(0, 200 * scale, 0, 50 * scale)
+local savedPosition = nil
 
--- Küçültme/Büyütme
-local isOpen = true
-closeBtn.MouseButton1Click:Connect(function()
-    isOpen = not isOpen
-    local targetSize = isOpen and UDim2.new(0, 360, 0, 500) or UDim2.new(0, 360, 0, 60)
-    local targetText = isOpen and "×" or "+"
-    local targetColor = isOpen and Color3.fromRGB(255, 69, 58) or Color3.fromRGB(48, 209, 88)
+local function toggleMinimize()
+    isMinimized = not isMinimized
     
-    tweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
-        Size = targetSize
+    if isMinimized then
+        savedPosition = mainFrame.Position
+        contentFrame.Visible = false
+        tabContainer.Visible = false
+        
+        tweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart), {
+            Size = minimizedSize
+        }):Play()
+        title.Text = ""
+    else
+        contentFrame.Visible = true
+        tabContainer.Visible = true
+        
+        tweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
+            Size = originalSize
+        }):Play()
+        title.Text = "⚡ WESTGO HUB v3.0"
+    end
+end
+
+-- KAPATMA ONAY PENCERESİ
+local function showCloseConfirmation()
+    local overlay = Instance.new("Frame")
+    overlay.Name = "CloseOverlay"
+    overlay.Size = UDim2.new(1, 0, 1, 0)
+    overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    overlay.BackgroundTransparency = 1
+    overlay.ZIndex = 1000
+    overlay.Parent = screenGui
+    
+    tweenService:Create(overlay, TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
+    
+    local confirmFrame = Instance.new("Frame")
+    confirmFrame.Name = "ConfirmFrame"
+    confirmFrame.Size = UDim2.new(0, 300 * scale, 0, 0)
+    confirmFrame.Position = UDim2.new(0.5, -150 * scale, 0.5, -90 * scale)
+    confirmFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    confirmFrame.BorderSizePixel = 0
+    confirmFrame.ZIndex = 1001
+    confirmFrame.Parent = overlay
+    
+    local cornerC = Instance.new("UICorner")
+    cornerC.CornerRadius = UDim.new(0, 20 * scale)
+    cornerC.Parent = confirmFrame
+    
+    tweenService:Create(confirmFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 300 * scale, 0, 180 * scale)
     }):Play()
     
-    closeBtn.Text = targetText
-    closeBtn.BackgroundColor3 = targetColor
-end)
+    local warnTitle = Instance.new("TextLabel")
+    warnTitle.Size = UDim2.new(1, 0, 0, 50 * scale)
+    warnTitle.Position = UDim2.new(0, 0, 0, 15 * scale)
+    warnTitle.Text = "⚠️ Kapatma Onayı"
+    warnTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    warnTitle.TextSize = 22 * scale
+    warnTitle.Font = Enum.Font.GothamBold
+    warnTitle.BackgroundTransparency = 1
+    warnTitle.ZIndex = 1002
+    warnTitle.Parent = confirmFrame
+    
+    local warnText = Instance.new("TextLabel")
+    warnText.Size = UDim2.new(1, -30, 0, 50 * scale)
+    warnText.Position = UDim2.new(0, 15, 0, 65 * scale)
+    warnText.Text = "Tüm hileleri kapatıp menüyü kapatmak istiyor musunuz?"
+    warnText.TextColor3 = Color3.fromRGB(180, 180, 180)
+    warnText.TextSize = 14 * scale
+    warnText.Font = Enum.Font.GothamMedium
+    warnText.BackgroundTransparency = 1
+    warnText.TextWrapped = true
+    warnText.ZIndex = 1002
+    warnText.Parent = confirmFrame
+    
+    local btnContainer = Instance.new("Frame")
+    btnContainer.Size = UDim2.new(1, -30, 0, 45 * scale)
+    btnContainer.Position = UDim2.new(0, 15, 1, -60 * scale)
+    btnContainer.BackgroundTransparency = 1
+    btnContainer.ZIndex = 1002
+    btnContainer.Parent = confirmFrame
+    
+    local noBtn = Instance.new("TextButton")
+    noBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    noBtn.Position = UDim2.new(0, 0, 0, 0)
+    noBtn.Text = "Hayır"
+    noBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    noBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+    noBtn.Font = Enum.Font.GothamBold
+    noBtn.TextSize = 16 * scale
+    noBtn.ZIndex = 1003
+    noBtn.Parent = btnContainer
+    
+    local cornerNo = Instance.new("UICorner")
+    cornerNo.CornerRadius = UDim.new(0, 12 * scale)
+    cornerNo.Parent = noBtn
+    
+    local yesBtn = Instance.new("TextButton")
+    yesBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    yesBtn.Position = UDim2.new(0.52, 0, 0, 0)
+    yesBtn.Text = "Evet, Kapat"
+    yesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    yesBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    yesBtn.Font = Enum.Font.GothamBold
+    yesBtn.TextSize = 16 * scale
+    yesBtn.ZIndex = 1003
+    yesBtn.Parent = btnContainer
+    
+    local cornerYes = Instance.new("UICorner")
+    cornerYes.CornerRadius = UDim.new(0, 12 * scale)
+    cornerYes.Parent = yesBtn
+    
+    noBtn.MouseEnter:Connect(function()
+        tweenService:Create(noBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 100, 110)}):Play()
+    end)
+    noBtn.MouseLeave:Connect(function()
+        tweenService:Create(noBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 90)}):Play()
+    end)
+    
+    yesBtn.MouseEnter:Connect(function()
+        tweenService:Create(yesBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 80, 80)}):Play()
+    end)
+    yesBtn.MouseLeave:Connect(function()
+        tweenService:Create(yesBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play()
+    end)
+    
+    noBtn.MouseButton1Click:Connect(function()
+        tweenService:Create(confirmFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 300 * scale, 0, 0)
+        }):Play()
+        tweenService:Create(overlay, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        task.delay(0.3, function() overlay:Destroy() end)
+    end)
+    
+    yesBtn.MouseButton1Click:Connect(function()
+        for k, _ in pairs(states) do
+            states[k] = false
+        end
+        
+        platform.Parent = nil
+        removeTeleportTool()
+        disableAntiFling()
+        lplayer.CameraMaxZoomDistance = 128
+        lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+        
+        local char = lplayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.PlatformStand = false
+            char.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local root = char.HumanoidRootPart
+            if root:FindFirstChild("FlyBG") then root.FlyBG:Destroy() end
+            if root:FindFirstChild("FlyBV") then root.FlyBV:Destroy() end
+        end
+        
+        for _, p in pairs(players:GetPlayers()) do
+            if p.Character then
+                if p.Character:FindFirstChild("AdminESP") then p.Character.AdminESP:Destroy() end
+                if p.Character:FindFirstChild("ESPHighlight") then p.Character.ESPHighlight:Destroy() end
+            end
+        end
+        
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "GunHighlight" then v:Destroy() end
+            if v.Name == "GunTag" then v:Destroy() end
+        end
+        
+        showiOSNotification("👋 WESTGO HUB Kapatıldı", "Tüm hileler devre dışı", 3, "rbxassetid://6031071053")
+        
+        task.delay(1, function()
+            screenGui:Destroy()
+        end)
+    end)
+end
 
--- SÜRÜKLEME FONKSİYONU
-local dragging = false
-local dragInput, dragStart, startPos
+-- BUTONLAR
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 30 * scale, 0, 30 * scale)
+minBtn.Position = UDim2.new(1, -75 * scale, 0, 10 * scale)
+minBtn.Text = "-"
+minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.ZIndex = 102
+minBtn.Parent = mainFrame
 
-local function update(input)
-    local delta = input.Position - dragStart
-    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 
-                                   startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30 * scale, 0, 30 * scale)
+closeBtn.Position = UDim2.new(1, -40 * scale, 0, 10 * scale)
+closeBtn.Text = "X"
+closeBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.ZIndex = 102
+closeBtn.Parent = mainFrame
+
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+minBtn.MouseButton1Click:Connect(toggleMinimize)
+closeBtn.MouseButton1Click:Connect(showCloseConfirmation)
+
+-- SÜRÜKLEME
+local dragging, dragInput, dragStart, startPos
+
+local function clampToScreen(pos, size)
+    local viewportSize = workspace.CurrentCamera.ViewportSize
+    local maxX = math.max(0, viewportSize.X - size.X.Offset)
+    local maxY = math.max(0, viewportSize.Y - size.Y.Offset)
+    return UDim2.new(0, math.clamp(pos.X.Offset, 0, maxX), 0, math.clamp(pos.Y.Offset, 0, maxY))
 end
 
 header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-       input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or 
-       input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
     end
 end)
 
 userInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        mainFrame.Position = clampToScreen(newPos, mainFrame.Size)
+    end
+end)
+
+userInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+        dragging = false
+        savedPosition = mainFrame.Position
     end
 end)
 
 -- ANA DÖNGÜLER
-
--- 1. Platform Takibi + Noclip + Fly + AntiFling
 runService.Heartbeat:Connect(function()
     local char = lplayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    
     if not char or not root then return end
     
-    -- Platform Takibi
     if states.platform and platform.Parent then
         platform.CFrame = CFrame.new(root.Position.X, root.Position.Y - 3.2, root.Position.Z)
     end
     
-    -- Noclip
     if states.noclip then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") and part.Name ~= "AdminPlatform" then
@@ -760,9 +1172,7 @@ runService.Heartbeat:Connect(function()
         end
     end
     
-    -- Fly Kontrolü
     if states.fly then
-        local humanoid = char:FindFirstChild("Humanoid")
         local bg = root:FindFirstChild("FlyBG") or Instance.new("BodyGyro")
         local bv = root:FindFirstChild("FlyBV") or Instance.new("BodyVelocity")
         
@@ -784,82 +1194,66 @@ runService.Heartbeat:Connect(function()
         local cam = workspace.CurrentCamera
         bg.CFrame = cam.CFrame
         
-        local speed = 50
         local moveDir = Vector3.new(0, 0, 0)
+        if userInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if userInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if userInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if userInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        if userInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+        if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
         
-        if userInputService:IsKeyDown(Enum.KeyCode.W) then
-            moveDir = moveDir + cam.CFrame.LookVector
-        end
-        if userInputService:IsKeyDown(Enum.KeyCode.S) then
-            moveDir = moveDir - cam.CFrame.LookVector
-        end
-        if userInputService:IsKeyDown(Enum.KeyCode.A) then
-            moveDir = moveDir - cam.CFrame.RightVector
-        end
-        if userInputService:IsKeyDown(Enum.KeyCode.D) then
-            moveDir = moveDir + cam.CFrame.RightVector
-        end
-        if userInputService:IsKeyDown(Enum.KeyCode.Space) then
-            moveDir = moveDir + Vector3.new(0, 1, 0)
-        end
-        if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-            moveDir = moveDir - Vector3.new(0, 1, 0)
-        end
-        
-        bv.Velocity = moveDir * speed
+        bv.Velocity = moveDir * 50
     else
         if root:FindFirstChild("FlyBG") then root.FlyBG:Destroy() end
         if root:FindFirstChild("FlyBV") then root.FlyBV:Destroy() end
     end
 end)
 
--- 2. Player ESP Güncelleme
 runService.Heartbeat:Connect(function()
     if not states.playerESP then return end
-    
     for _, p in pairs(players:GetPlayers()) do
         if p ~= lplayer and p.Character then
             local char = p.Character
             local tag = char:FindFirstChild("AdminESP") or createPlayerTag(p)
             local highlight = char:FindFirstChild("ESPHighlight") or Instance.new("Highlight", char)
-            
             if highlight.Name ~= "ESPHighlight" then highlight.Name = "ESPHighlight" end
             
             local currentColor, currentIcon = getPlayerStatus(p)
-            
             highlight.FillColor = currentColor
             highlight.Enabled = true
             tag.Enabled = true
             
             if states.specialESP and p.UserId == specialUserId then
                 tag.IconLabel.Text = currentIcon ~= "" and currentIcon or "⭐"
-                highlight.FillColor = Color3.fromRGB(255, 0, 255)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+                highlight.FillColor = Color3.fromRGB(168, 85, 247)
+                highlight.OutlineColor = Color3.fromRGB(245, 158, 11)
             else
                 tag.IconLabel.Text = currentIcon
                 highlight.OutlineColor = Color3.new(1, 1, 1)
             end
-            
             tag.PlayerNameLabel.TextColor3 = currentColor
         end
     end
 end)
 
--- 3. Gun ESP Tarama
 task.spawn(function()
     while true do
         if states.gunESP then
             for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "GunDrop" then
-                    applyGunESP(v)
-                end
+                if v.Name == "GunDrop" then applyGunESP(v) end
             end
         end
         task.wait(1)
     end
 end)
 
--- Yeni Oyuncu Katılınca ESP Ekle
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.G and states.gunMagnet then
+        collectGuns()
+    end
+end)
+
 players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function()
         task.wait(1)
@@ -873,27 +1267,19 @@ players.PlayerAdded:Connect(function(p)
     end)
 end)
 
--- KARAKTER YENİDEN SPAWN OLDUĞUNDA
 local function onCharacterAdded(char)
-    -- Teleport Tool
     if states.teleport then
         task.wait(0.5)
         createTeleportTool()
     end
-    
-    -- Anti-Fling (Reset'te koruma devam etsin)
     if states.antiFling then
         task.wait(0.3)
         enableAntiFling()
     end
-    
-    -- Max Zoom
     if states.maxZoom then
         lplayer.CameraMaxZoomDistance = 100000
         lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
     end
-    
-    -- ESP'leri yeniden uygula
     if states.playerESP then
         task.wait(1)
         for _, p in pairs(players:GetPlayers()) do
@@ -909,16 +1295,6 @@ local function onCharacterAdded(char)
 end
 
 lplayer.CharacterAdded:Connect(onCharacterAdded)
+if lplayer.Character then onCharacterAdded(lplayer.Character) end
 
-if lplayer.Character then
-    onCharacterAdded(lplayer.Character)
-end
-
--- AÇMA/KAPATMA TOGGLE (F tuşu)
-userInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
-        screenGui.Enabled = not screenGui.Enabled
-    end
-end)
-
-print("iOS Admin Panel + ESP + Anti-Fling Aktif! (F tuşu ile gizle/göster)")
+print("⚡ WESTGO HUB v3.0 - UI İçi Profil + Bildirimler")
