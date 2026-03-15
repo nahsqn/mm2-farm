@@ -490,75 +490,132 @@ local function removeTeleportTool()
     end
 end
 
--- ANTI-FLING SİSTEMİ
-local antiFlingConnection = nil
-local antiFlingBodyPos = nil
-local antiFlingBodyGyro = nil
+-- ============================================
+-- YENİ ANTI-FLING SİSTEMİ (GÜNCELLENDİ)
+-- ============================================
 
-local function enableAntiFling()
-    local char = lplayer.Character
-    if not char then return end
+-- [ Services ] --
+local Services = setmetatable({}, {__index = function(Self, Index)
+    local NewService = game.GetService(game, Index)
+    if NewService then
+        Self[Index] = NewService
+    end
+    return NewService
+end})
+
+-- Anti-Fling değişkenleri
+local antiFlingConnections = {}
+local lastPosition = nil
+local antiFlingEnabled = false
+
+-- Diğer oyuncular için anti-fling
+local function PlayerAdded(Player)
+    if not antiFlingEnabled then return end
     
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local Detected = false
+    local Character
+    local PrimaryPart
+
+    local function CharacterAdded(NewCharacter)
+        Character = NewCharacter
+        repeat
+            task.wait()
+            PrimaryPart = NewCharacter:FindFirstChild("HumanoidRootPart")
+        until PrimaryPart
+        Detected = false
+    end
+
+    CharacterAdded(Player.Character or Player.CharacterAdded:Wait())
     
-    if antiFlingBodyPos then antiFlingBodyPos:Destroy() end
-    if antiFlingBodyGyro then antiFlingBodyGyro:Destroy() end
+    local charConnection = Player.CharacterAdded:Connect(CharacterAdded)
+    table.insert(antiFlingConnections, charConnection)
     
-    antiFlingBodyPos = Instance.new("BodyPosition")
-    antiFlingBodyPos.Name = "AntiFlingBP"
-    antiFlingBodyPos.MaxForce = Vector3.new(0, math.huge, 0)
-    antiFlingBodyPos.Position = root.Position
-    antiFlingBodyPos.D = 500
-    antiFlingBodyPos.P = 5000
-    antiFlingBodyPos.Parent = root
-    
-    antiFlingBodyGyro = Instance.new("BodyGyro")
-    antiFlingBodyGyro.Name = "AntiFlingBG"
-    antiFlingBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    antiFlingBodyGyro.CFrame = root.CFrame
-    antiFlingBodyGyro.D = 100
-    antiFlingBodyGyro.P = 10000
-    antiFlingBodyGyro.Parent = root
-    
-    antiFlingConnection = runService.Heartbeat:Connect(function()
-        if not states.antiFling then return end
-        if not lplayer.Character then return end
-        local currentRoot = lplayer.Character:FindFirstChild("HumanoidRootPart")
-        if not currentRoot then return end
-        
-        local velocity = currentRoot.Velocity
-        if velocity.Magnitude > 150 then
-            currentRoot.Velocity = Vector3.new(0, 0, 0)
-            currentRoot.RotVelocity = Vector3.new(0, 0, 0)
-            if antiFlingBodyPos then
-                antiFlingBodyPos.Position = currentRoot.Position - Vector3.new(0, 5, 0)
+    local heartbeatConnection = Services.RunService.Heartbeat:Connect(function()
+        if not antiFlingEnabled then return end
+        if (Character and Character:IsDescendantOf(workspace)) and (PrimaryPart and PrimaryPart:IsDescendantOf(Character)) then
+            if PrimaryPart.AssemblyAngularVelocity.Magnitude > 50 or PrimaryPart.AssemblyLinearVelocity.Magnitude > 100 then
+                if Detected == false then
+                    showiOSNotification("⚠️ Fling Detected", "Player: " .. tostring(Player.Name), 3, "rbxassetid://6034281908")
+                end
+                Detected = true
+                for i,v in ipairs(Character:GetDescendants()) do
+                    if v:IsA("BasePart") then
+                        v.CanCollide = false
+                        v.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        v.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        v.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0)
+                    end
+                end
+                PrimaryPart.CanCollide = false
+                PrimaryPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                PrimaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                PrimaryPart.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0)
             end
         end
-        
-        if antiFlingBodyPos then
-            antiFlingBodyPos.Position = currentRoot.Position
-        end
-        if antiFlingBodyGyro then
-            antiFlingBodyGyro.CFrame = currentRoot.CFrame
-        end
     end)
+    table.insert(antiFlingConnections, heartbeatConnection)
+end
+
+-- LocalPlayer için anti-fling
+local function enableAntiFling()
+    if antiFlingEnabled then return end
+    antiFlingEnabled = true
+    
+    -- Mevcut oyuncular için başlat
+    for i,v in ipairs(Services.Players:GetPlayers()) do
+        if v ~= lplayer then
+            PlayerAdded(v)
+        end
+    end
+    
+    -- Yeni oyuncular için bağlantı
+    local playerAddedConnection = Services.Players.PlayerAdded:Connect(PlayerAdded)
+    table.insert(antiFlingConnections, playerAddedConnection)
+    
+    -- LocalPlayer koruması
+    local localHeartbeat = Services.RunService.Heartbeat:Connect(function()
+        if not antiFlingEnabled then return end
+        pcall(function()
+            local char = lplayer.Character
+            if not char then return end
+            local PrimaryPart = char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart
+            if not PrimaryPart then return end
+            
+            if PrimaryPart.AssemblyLinearVelocity.Magnitude > 250 or PrimaryPart.AssemblyAngularVelocity.Magnitude > 250 then
+                PrimaryPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                PrimaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                if lastPosition then
+                    PrimaryPart.CFrame = lastPosition
+                end
+                
+                showiOSNotification("🛡️ Anti-Fling", "Fling neutralized! Position restored.", 3, "rbxassetid://6034281908")
+            elseif PrimaryPart.AssemblyLinearVelocity.Magnitude < 50 or PrimaryPart.AssemblyAngularVelocity.Magnitude < 50 then
+                lastPosition = PrimaryPart.CFrame
+            end
+        end)
+    end)
+    table.insert(antiFlingConnections, localHeartbeat)
+    
+    showiOSNotification("🛡️ Anti-Fling", "Advanced protection enabled!", 2, "rbxassetid://6034281908")
 end
 
 local function disableAntiFling()
-    if antiFlingConnection then
-        antiFlingConnection:Disconnect()
-        antiFlingConnection = nil
+    if not antiFlingEnabled then return end
+    antiFlingEnabled = false
+    
+    -- Tüm bağlantıları temizle
+    for _, connection in ipairs(antiFlingConnections) do
+        if connection then
+            pcall(function() connection:Disconnect() end)
+        end
     end
-    if antiFlingBodyPos then
-        antiFlingBodyPos:Destroy()
-        antiFlingBodyPos = nil
-    end
-    if antiFlingBodyGyro then
-        antiFlingBodyGyro:Destroy()
-        antiFlingBodyGyro = nil
-    end
+    antiFlingConnections = {}
+    lastPosition = nil
+    
+    showiOSNotification("❌ Anti-Fling", "Protection disabled!", 2, "rbxassetid://6034281908")
 end
+
+-- ============================================
 
 -- GUN MAGNET FONKSİYONU
 local function collectGuns()
@@ -1259,7 +1316,7 @@ local function onCharacterAdded(char)
     end
     if states.antiFling then
         task.wait(0.3)
-        enableAntiFling()
+        -- Anti-fling global çalışıyor, karakter değişiminde otomatik devreye giriyor
     end
     if states.maxZoom then
         lplayer.CameraMaxZoomDistance = 100000
@@ -1282,4 +1339,4 @@ end
 lplayer.CharacterAdded:Connect(onCharacterAdded)
 if lplayer.Character then onCharacterAdded(lplayer.Character) end
 
-print("⚡ WESTGO HUB v3.0 - UI İçi Profil + Bildirimler")
+print("⚡ WESTGO HUB v3.0 - Advanced Anti-Fling Enabled")
