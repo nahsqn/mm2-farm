@@ -339,7 +339,8 @@ createTab("Misc")
 createTab("Player")
 createTab("ESP")
 createTab("Visuals")
-createTab("Kill Aura") -- YENİ SEKME
+createTab("Kill Aura")
+createTab("Combat")
 
 -- İÇERİK ALANLARI
 local contentFrame = Instance.new("Frame")
@@ -375,7 +376,8 @@ local miscScroll, miscGrid = createTabContent("Misc")
 local playerScroll, playerGrid = createTabContent("Player")
 local espScroll, espGrid = createTabContent("ESP")
 local visualScroll, visualGrid = createTabContent("Visuals")
-local killAuraScroll, killAuraGrid = createTabContent("Kill Aura") -- YENİ İÇERİK
+local killAuraScroll, killAuraGrid = createTabContent("Kill Aura")
+local combatScroll, combatGrid = createTabContent("Combat")
 
 -- SEKME DEĞİŞTİRME
 local function switchTab(newTab)
@@ -420,7 +422,10 @@ local states = {
     -- KILL AURA DEĞİŞKENLERİ
     qGunKill = false,
     killAura = false,
-    autoKill = false
+    autoKill = false,
+    -- COMBAT DEĞİŞKENLERİ
+    shootMurderer = false,
+    autoShoot = false
 }
 
 -- KILL AURA SİSTEMİ DEĞİŞKENLERİ
@@ -439,6 +444,16 @@ local killAuraConfig = {
 local isOnCooldownQ = false
 local killAuraConnection = nil
 local autoKillConnection = nil
+
+-- COMBAT SİSTEMİ DEĞİŞKENLERİ
+local combatConfig = {
+    shootOffset = 2.8,
+    offsetToPingMult = 1,
+    equipWaitTime = 0.12,
+    autoShootRange = 50
+}
+
+local autoShootConnection = nil
 
 -- PLATFORM AYARLARI
 local platform = Instance.new("Part")
@@ -639,7 +654,7 @@ local function disableAntiFling()
 end
 
 -- ============================================
--- KILL AURA SİSTEMİ (XENODA Q GUN KILL ENTEGRASYONU)
+-- KILL AURA SİSTEMİ (Q GUN KILL DAHİL)
 -- ============================================
 
 -- Tool bul ve al
@@ -666,7 +681,7 @@ local function autoEquipKnife()
     return nil
 end
 
--- Gun tool'u olan oyuncuyu bul
+-- Gun tool'u olan oyuncuyu bul (Q Gun Kill için)
 local function findGunPlayer()
     local char = lplayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -721,7 +736,7 @@ local function findGunPlayer()
     return closestPlayer
 end
 
--- TEK SEFERDE ÖLDÜR
+-- TEK SEFERDE ÖLDÜR (Q Gun Kill için)
 local function oneShotKill(targetHrp, targetHumanoid, knife)
     -- Hedefe dön
     local char = lplayer.Character
@@ -788,7 +803,7 @@ local function oneShotKill(targetHrp, targetHumanoid, knife)
     end
 end
 
--- Q ANA FONKSİYONU (Gun Kill)
+-- Q ANA FONKSİYONU (Gun Kill - Sheriff kesici)
 local function qGunKill()
     if isOnCooldownQ then
         showiOSNotification("⏳ Cooldown", "Q bekleme süresinde!", 2, "rbxassetid://6034281908")
@@ -799,7 +814,7 @@ local function qGunKill()
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    -- Gun hedefi bul
+    -- Gun hedefi bul (Sheriff)
     local target = findGunPlayer()
     if not target then
         showiOSNotification("❌ Hedef Yok", "Gun tool'u olan kimse yok!", 2, "rbxassetid://6034281908")
@@ -969,6 +984,176 @@ local function disableAutoKill()
         autoKillConnection = nil
     end
     showiOSNotification("❌ Auto Kill", "Seri öldürme devre dışı!", 2, "rbxassetid://6034281908")
+end
+
+-- ============================================
+-- COMBAT SİSTEMİ (XENODA Q GUN KILL - SHERIFF VURMA)
+-- ============================================
+
+-- Katili bulan fonksiyon
+local function findMurderer()
+    for _, i in ipairs(players:GetPlayers()) do
+        if i.Backpack:FindFirstChild("Knife") then return i end
+    end
+    for _, i in ipairs(players:GetPlayers()) do
+        if not i.Character then continue end
+        if i.Character:FindFirstChild("Knife") then return i end
+    end
+    return nil
+end
+
+-- Diğer sheriff'i bulan fonksiyon
+local function findSheriffThatsNotMe()
+    for _, i in ipairs(players:GetPlayers()) do
+        if i == lplayer then continue end
+        if i.Backpack:FindFirstChild("Gun") then return i end
+    end
+    for _, i in ipairs(players:GetPlayers()) do
+        if i == lplayer then continue end
+        if not i.Character then continue end
+        if i.Character:FindFirstChild("Gun") then return i end
+    end
+    return nil
+end
+
+-- Tahmin pozisyon hesaplama
+local function getPredictedPosition(player, offset)
+    local character = player.Character
+    if not character then return Vector3.new() end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso")
+    local hum = character:FindFirstChild("Humanoid")
+    
+    if not hrp or not hum then
+        return hrp and hrp.Position or Vector3.new()
+    end
+    
+    local velocity = hrp.AssemblyLinearVelocity
+    local moveDir = hum.MoveDirection
+    
+    local predicted = hrp.Position 
+        + (velocity * Vector3.new(0.75, 0.5, 0.75)) * (offset / 15) 
+        + moveDir * offset
+        
+    -- ping etkisi
+    predicted *= (((lplayer:GetNetworkPing() * 1000) * ((combatConfig.offsetToPingMult - 1) * 0.01)) + 1)
+    
+    return predicted
+end
+
+-- Ana vurma fonksiyonu (Sheriff için)
+local function shootMurderer()
+    local character = lplayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    local gunInBackpack = lplayer.Backpack:FindFirstChild("Gun")
+    local gunInCharacter = character:FindFirstChild("Gun")
+    
+    -- Silah yoksa uyarı ver
+    if not gunInBackpack and not gunInCharacter then
+        showiOSNotification("❌ Silah Yok", "Gun bulunamadı!", 2, "rbxassetid://6034281908")
+        return
+    end
+    
+    -- Silah backpack'teyse eline al
+    if gunInBackpack then
+        humanoid:EquipTool(gunInBackpack)
+        task.wait(combatConfig.equipWaitTime)
+        
+        gunInCharacter = character:FindFirstChild("Gun")
+        if not gunInCharacter then
+            showiOSNotification("❌ Hata", "Silah eline alınamadı!", 2, "rbxassetid://6034281908")
+            return
+        end
+    end
+    
+    -- Hedef bul
+    local target = findMurderer() or findSheriffThatsNotMe()
+    if not target or not target.Character then
+        showiOSNotification("❌ Hedef Yok", "Katil veya Sheriff bulunamadı!", 2, "rbxassetid://6034281908")
+        return
+    end
+    
+    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+    
+    local predictedPosition = getPredictedPosition(target, combatConfig.shootOffset)
+    
+    -- Ateş etme denemeleri
+    local success = false
+    
+    -- Yöntem 1: KnifeLocal → CreateBeam → RemoteFunction (YARHM tarzı)
+    local knifeLocal = gunInCharacter:FindFirstChild("KnifeLocal")
+    if knifeLocal then
+        local createBeam = knifeLocal:FindFirstChild("CreateBeam")
+        if createBeam then
+            local rf = createBeam:FindFirstChildWhichIsA("RemoteFunction")
+            if rf then
+                rf:InvokeServer(1, predictedPosition, "AH2")
+                success = true
+            end
+        end
+    end
+    
+    -- Yöntem 2: Shoot RemoteEvent
+    if not success then
+        local shootEvent = gunInCharacter:FindFirstChild("Shoot")
+        if shootEvent and shootEvent:IsA("RemoteEvent") then
+            shootEvent:FireServer(
+                CFrame.new(character.RightHand.Position),
+                CFrame.new(predictedPosition)
+            )
+            success = true
+        end
+    end
+    
+    if success then
+        showiOSNotification("🔫 Ateş Edildi", target.Name .. " vuruldu!", 2, "rbxassetid://6034287518")
+    else
+        showiOSNotification("❌ Hata", "Ateş etme yöntemi bulunamadı!", 2, "rbxassetid://6034281908")
+    end
+end
+
+-- Auto Shoot bağlantısı
+local function enableAutoShoot()
+    if autoShootConnection then return end
+    
+    autoShootConnection = runService.Heartbeat:Connect(function()
+        if not states.autoShoot then return end
+        
+        local char = lplayer.Character
+        if not char then return end
+        
+        -- Sadece silah eldeyken çalış
+        if not char:FindFirstChild("Gun") then return end
+        
+        local target = findMurderer()
+        if not target or not target.Character then return end
+        
+        local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+        local myHRP = char:FindFirstChild("HumanoidRootPart")
+        
+        if not targetHRP or not myHRP then return end
+        
+        local distance = (targetHRP.Position - myHRP.Position).Magnitude
+        
+        if distance <= combatConfig.autoShootRange then
+            shootMurderer()
+        end
+    end)
+    
+    showiOSNotification("🔫 Auto Shoot", "Otomatik ateş aktif! Menzil: " .. combatConfig.autoShootRange, 2, "rbxassetid://6034287518")
+end
+
+local function disableAutoShoot()
+    if autoShootConnection then
+        autoShootConnection:Disconnect()
+        autoShootConnection = nil
+    end
+    showiOSNotification("❌ Auto Shoot", "Otomatik ateş devre dışı!", 2, "rbxassetid://6034281908")
 end
 
 -- ============================================
@@ -1301,7 +1486,7 @@ createiOSFeature("Gun Magnet [G]", "G tuşu silah çek", espScroll, "rbxassetid:
     states.gunMagnet = active
 end)
 
--- KILL AURA SEKMESİ (YENİ)
+-- KILL AURA SEKMESİ (Q GUN KILL EKLENDİ)
 createiOSFeature("Q Gun Kill", "Q = Gun'lu hedefi çek öldür", killAuraScroll, "rbxassetid://6034287518", function(active)
     states.qGunKill = active
     if active then
@@ -1319,6 +1504,25 @@ end)
 createiOSFeature("Auto Kill", "Seri otomatik öldürme", killAuraScroll, "rbxassetid://6034287518", function(active)
     states.autoKill = active
     if active then enableAutoKill() else disableAutoKill() end
+end)
+
+-- COMBAT SEKMESİ (SHERIFF VURMA)
+createiOSFeature("Shoot Murderer [E]", "E tuşu ile katili vur", combatScroll, "rbxassetid://6034287518", function(active)
+    states.shootMurderer = active
+    if active then
+        showiOSNotification("🔫 Shoot Murderer", "E tuşu aktif! Sheriff isen katili vurur.", 3, "rbxassetid://6034287518")
+    else
+        showiOSNotification("❌ Shoot Murderer", "E tuşu devre dışı!", 2, "rbxassetid://6034281908")
+    end
+end)
+
+createiOSFeature("Auto Shoot", "Yakına geleni otomatik vur", combatScroll, "rbxassetid://6034287518", function(active)
+    states.autoShoot = active
+    if active then
+        enableAutoShoot()
+    else
+        disableAutoShoot()
+    end
 end)
 
 -- Canvas size güncelleme
@@ -1481,6 +1685,7 @@ local function showCloseConfirmation()
         disableAntiFling()
         disableKillAura()
         disableAutoKill()
+        disableAutoShoot()
         lplayer.CameraMaxZoomDistance = 128
         lplayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
         
@@ -1667,13 +1872,18 @@ task.spawn(function()
     end
 end)
 
--- INPUT HANDLER (Q Gun Kill + Gun Magnet)
+-- INPUT HANDLER (Q Gun Kill + E Shoot Murderer + G Gun Magnet)
 userInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Q Gun Kill
+    -- Q Gun Kill (Kill Aura sekmesinden - Sheriff kesici)
     if input.KeyCode == Enum.KeyCode.Q and states.qGunKill then
         qGunKill()
+    end
+    
+    -- Shoot Murderer (Combat sekmesinden - Katil vurma)
+    if input.KeyCode == Enum.KeyCode.E and states.shootMurderer then
+        shootMurderer()
     end
     
     -- Gun Magnet
@@ -1724,4 +1934,4 @@ end
 lplayer.CharacterAdded:Connect(onCharacterAdded)
 if lplayer.Character then onCharacterAdded(lplayer.Character) end
 
-print("⚡ WESTGO HUB v3.0 - Kill Aura & Q Gun Kill Enabled")
+print("⚡ WESTGO HUB v3.0 - Q Gun Kill & Combat Enabled")
