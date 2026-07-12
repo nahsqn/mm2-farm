@@ -7,7 +7,7 @@ local workspace = game:GetService("Workspace")
 
 -- EKRAN GUI OLUŞTURMA
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WESTGO_HUB_V3"
+screenGui.Name = "Void"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.DisplayOrder = 999999
@@ -179,6 +179,7 @@ end
 -- ANA PANEL
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
+mainFrame.BackgroundTransparency = 0.8
 mainFrame.Size = UDim2.new(0, 700 * scale, 0, 420 * scale)
 mainFrame.Position = getCenterPosition(UDim2.new(0, 700 * scale, 0, 420 * scale))
 mainFrame.AnchorPoint = Vector2.new(0, 0)
@@ -191,6 +192,113 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 20 * scale)
 corner.Parent = mainFrame
 
+-- ============================================
+-- KENAR ANİMASYONU - Siyah/Mor Dönen Yuvarlak
+-- ============================================
+
+-- Kenar çerçevesi (arka planda)
+local borderFrame = Instance.new("Frame")
+borderFrame.Name = "BorderFrame"
+borderFrame.Size = UDim2.new(1, 4, 1, 4)
+borderFrame.Position = UDim2.new(0, -2, 0, -2)
+borderFrame.BackgroundTransparency = 1
+borderFrame.ZIndex = 99
+borderFrame.Parent = mainFrame
+
+local borderCorner = Instance.new("UICorner")
+borderCorner.CornerRadius = UDim.new(0, 22 * scale)
+borderCorner.Parent = borderFrame
+
+-- Dönen gradient çerçevesi
+local gradientFrame = Instance.new("Frame")
+gradientFrame.Name = "GradientFrame"
+gradientFrame.Size = UDim2.new(1, 0, 1, 0)
+gradientFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+gradientFrame.BorderSizePixel = 0
+gradientFrame.ZIndex = 99
+gradientFrame.Parent = borderFrame
+
+local gradientCorner = Instance.new("UICorner")
+gradientCorner.CornerRadius = UDim.new(0, 22 * scale)
+gradientCorner.Parent = gradientFrame
+
+-- UIGradient ile dönen renk geçişi
+local uiGradient = Instance.new("UIGradient")
+uiGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),   -- Mor
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(75, 0, 130)),  -- Koyu Mor
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),       -- Siyah
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(75, 0, 130)),   -- Koyu Mor
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(138, 43, 226))    -- Mor
+})
+uiGradient.Rotation = 0
+uiGradient.Parent = gradientFrame
+
+-- Dış çerçeve maske (içi boş yapmak için)
+local maskFrame = Instance.new("Frame")
+maskFrame.Name = "MaskFrame"
+maskFrame.Size = UDim2.new(1, -4, 1, -4)
+maskFrame.Position = UDim2.new(0, 2, 0, 2)
+maskFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+maskFrame.BorderSizePixel = 0
+maskFrame.ZIndex = 100
+maskFrame.Parent = gradientFrame
+
+local maskCorner = Instance.new("UICorner")
+maskCorner.CornerRadius = UDim.new(0, 20 * scale)
+maskCorner.Parent = maskFrame
+
+-- Dönme animasyonu (RunService ile smooth)
+local RunService = game:GetService("RunService")
+local rotationSpeed = 60 -- Derece/saniye
+local connection
+
+connection = RunService.RenderStepped:Connect(function(deltaTime)
+    if gradientFrame and gradientFrame.Parent then
+        uiGradient.Rotation = (uiGradient.Rotation + rotationSpeed * deltaTime) % 360
+    else
+        connection:Disconnect()
+    end
+end)
+
+-- ============================================
+-- GLOW EFEKTİ (Opsiyonel - Dışarıda hafif parıltı)
+-- ============================================
+local glowFrame = Instance.new("Frame")
+glowFrame.Name = "GlowFrame"
+glowFrame.Size = UDim2.new(1, 8, 1, 8)
+glowFrame.Position = UDim2.new(0, -4, 0, -4)
+glowFrame.BackgroundTransparency = 1
+glowFrame.ZIndex = 98
+glowFrame.Parent = mainFrame
+
+local glowCorner = Instance.new("UICorner")
+glowCorner.CornerRadius = UDim.new(0, 24 * scale)
+glowCorner.Parent = glowFrame
+
+local glowGradient = Instance.new("UIGradient")
+glowGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(138, 43, 226))
+})
+glowGradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.8),
+    NumberSequenceKeypoint.new(0.5, 1),
+    NumberSequenceKeypoint.new(1, 0.8)
+})
+glowGradient.Rotation = 0
+glowGradient.Parent = glowFrame
+
+local glowConnection
+glowConnection = RunService.RenderStepped:Connect(function(deltaTime)
+    if glowFrame and glowFrame.Parent then
+        glowGradient.Rotation = (glowGradient.Rotation - rotationSpeed * 0.5 * deltaTime) % 360
+    else
+        glowConnection:Disconnect()
+    end
+end)
+
 -- HEADER
 local header = Instance.new("Frame")
 header.Size = UDim2.new(1, 0, 0, 50 * scale)
@@ -198,105 +306,19 @@ header.BackgroundTransparency = 1
 header.ZIndex = 101
 header.Parent = mainFrame
 
--- OYUNCU PROFİLİ (UI İÇİNDE SOL ÜST)
-local playerProfile = Instance.new("Frame")
-playerProfile.Name = "PlayerProfile"
-playerProfile.Size = UDim2.new(0, 180 * scale, 0, 40 * scale)
-playerProfile.Position = UDim2.new(0, 15 * scale, 0, 5 * scale)
-playerProfile.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-playerProfile.BackgroundTransparency = 0.3
-playerProfile.BorderSizePixel = 0
-playerProfile.ZIndex = 102
-playerProfile.Parent = header
-
-local profileCorner = Instance.new("UICorner")
-profileCorner.CornerRadius = UDim.new(0, 12 * scale)
-profileCorner.Parent = playerProfile
-
--- Profil Resmi
-local profileImage = Instance.new("ImageLabel")
-profileImage.Name = "ProfileImage"
-profileImage.Size = UDim2.new(0, 32 * scale, 0, 32 * scale)
-profileImage.Position = UDim2.new(0, 4 * scale, 0.5, -16 * scale)
-profileImage.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-profileImage.BorderSizePixel = 0
-profileImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. lplayer.UserId .. "&w=150&h=150"
-profileImage.ZIndex = 103
-profileImage.Parent = playerProfile
-
-local imageCorner = Instance.new("UICorner")
-imageCorner.CornerRadius = UDim.new(1, 0)
-imageCorner.Parent = profileImage
-
--- Online durum noktası
-local statusDot = Instance.new("Frame")
-statusDot.Name = "StatusDot"
-statusDot.Size = UDim2.new(0, 10 * scale, 0, 10 * scale)
-statusDot.Position = UDim2.new(0, 28 * scale, 0.5, 10 * scale)
-statusDot.BackgroundColor3 = Color3.fromRGB(52, 199, 89)
-statusDot.BorderSizePixel = 0
-statusDot.ZIndex = 104
-statusDot.Parent = playerProfile
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(1, 0)
-statusCorner.Parent = statusDot
-
-local statusStroke = Instance.new("UIStroke")
-statusStroke.Color = Color3.fromRGB(30, 30, 40)
-statusStroke.Thickness = 2
-statusStroke.Parent = statusDot
-
--- İsim container
-local nameContainer = Instance.new("Frame")
-nameContainer.Size = UDim2.new(1, -45 * scale, 1, 0)
-nameContainer.Position = UDim2.new(0, 42 * scale, 0, 0)
-nameContainer.BackgroundTransparency = 1
-nameContainer.ZIndex = 103
-nameContainer.Parent = playerProfile
-
--- Görünen Ad
-local displayNameLabel = Instance.new("TextLabel")
-displayNameLabel.Name = "DisplayName"
-displayNameLabel.Size = UDim2.new(1, 0, 0, 20 * scale)
-displayNameLabel.Position = UDim2.new(0, 0, 0, 2 * scale)
-displayNameLabel.Text = lplayer.DisplayName
-displayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-displayNameLabel.TextSize = 14 * scale
-displayNameLabel.Font = Enum.Font.GothamBold
-displayNameLabel.BackgroundTransparency = 1
-displayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
-displayNameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-displayNameLabel.ZIndex = 103
-displayNameLabel.Parent = nameContainer
-
--- Kullanıcı Adı
-local usernameLabel = Instance.new("TextLabel")
-usernameLabel.Name = "Username"
-usernameLabel.Size = UDim2.new(1, 0, 0, 16 * scale)
-usernameLabel.Position = UDim2.new(0, 0, 0, 22 * scale)
-usernameLabel.Text = "@" .. lplayer.Name
-usernameLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
-usernameLabel.TextSize = 11 * scale
-usernameLabel.Font = Enum.Font.GothamMedium
-usernameLabel.BackgroundTransparency = 1
-usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
-usernameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-usernameLabel.ZIndex = 103
-usernameLabel.Parent = nameContainer
-
 -- BAŞLIK (SAĞ TARAF)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -220 * scale, 1, 0)
-title.Position = UDim2.new(0, 200 * scale, 0, 0)
-title.Text = "⚡ WESTGO HUB v3.0"
+title.Position = UDim2.new(0, 10 * scale, 0, 0)
+title.Text = "Void"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 18 * scale
-title.Font = Enum.Font.GothamBold
+title.TextSize = 50 * scale
+title.Font = Enum.Font.GothamBold -- <-- Yazı tipi buradan değiştirildi!
 title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 102
 title.Parent = header
+
 
 -- SEKME BUTONLARI
 local tabContainer = Instance.new("Frame")
@@ -473,7 +495,7 @@ local function createTeleportTool()
     local tool = Instance.new("Tool")
     tool.Name = "Teleport Tool"
     tool.RequiresHandle = false
-    tool.TextureId = "rbxassetid://6034287525"
+    tool.TextureId = "rbxassetid://103880225076501"
     tool.Parent = backpack
     
     tpToolRef = tool
@@ -1356,7 +1378,7 @@ local function toggleMinimize()
         tweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
             Size = originalSize
         }):Play()
-        title.Text = "⚡ WESTGO HUB v3.0"
+        title.Text = " VOİD v1.0"
     end
 end
 
@@ -1507,13 +1529,59 @@ local function showCloseConfirmation()
             if v.Name == "GunTag" then v:Destroy() end
         end
         
-        showiOSNotification("👋 WESTGO HUB Kapatıldı", "Tüm hileler devre dışı", 3, "rbxassetid://6031071053")
+        showiOSNotification("👋 Void Kapatıldı", "Tüm hileler devre dışı", 3, "rbxassetid://6031071053")
         
         task.delay(1, function()
             screenGui:Destroy()
         end)
     end)
 end
+-- ============================================
+-- BUTON SES SİSTEMİ
+-- ============================================
+
+-- Ses efektlerini oluşturma
+local hoverSound = Instance.new("Sound")
+hoverSound.Name = "ButtonHoverSound"
+hoverSound.SoundId = "rbxassetid://4210588241" -- Üzerine gelince çalacak ses ID'si (Değiştirebilirsin)
+hoverSound.Volume = 0.5
+hoverSound.Parent = screenGui
+
+local clickSound = Instance.new("Sound")
+clickSound.Name = "ButtonClickSound"
+clickSound.SoundId = "rbxassetid://15675059323" -- Tıklayınca çalacak ses ID'si (Değiştirebilirsin)
+clickSound.Volume = 0.6
+clickSound.Parent = screenGui
+
+-- Butona ses efektlerini bağlayan fonksiyon
+local function hookButtonSounds(button)
+    if button:IsA("TextButton") or button:IsA("ImageButton") then
+        -- Fare butonun üzerine geldiğinde
+        button.MouseEnter:Connect(function()
+            if hoverSound then
+                hoverSound:Play()
+            end
+        end)
+        
+        -- Butona tıklandığında
+        button.MouseButton1Click:Connect(function()
+            if clickSound then
+                clickSound:Play()
+            end
+        end)
+    end
+end
+
+-- Ekrandaki mevcut tüm butonları tara ve sesleri ekle
+for _, descendant in pairs(screenGui:GetDescendants()) do
+    hookButtonSounds(descendant)
+end
+
+-- Sonradan açılan pencereler veya yeni eklenen butonlar için dinamik takip
+screenGui.DescendantAdded:Connect(function(descendant)
+    hookButtonSounds(descendant)
+end)
+
 
 -- BUTONLAR
 local minBtn = Instance.new("TextButton")
@@ -1542,6 +1610,8 @@ minBtn.MouseButton1Click:Connect(toggleMinimize)
 closeBtn.MouseButton1Click:Connect(showCloseConfirmation)
 
 -- SÜRÜKLEME
+local userInputService = game:GetService("UserInputService") -- Servisin tanımlı olduğundan emin olalım
+
 local dragging, dragInput, dragStart, startPos
 
 local function clampToScreen(pos, size)
@@ -1552,7 +1622,8 @@ local function clampToScreen(pos, size)
 end
 
 header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    -- Hem fare sol tık hem de mobil dokunmatik basışını kontrol eder
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
@@ -1560,7 +1631,8 @@ header.InputBegan:Connect(function(input)
 end)
 
 userInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+    -- Hem fare hareketi hem de mobil parmak kaydırmasını kontrol eder
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
         local delta = input.Position - dragStart
         local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         mainFrame.Position = clampToScreen(newPos, mainFrame.Size)
@@ -1568,11 +1640,13 @@ userInputService.InputChanged:Connect(function(input)
 end)
 
 userInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+    -- Tıklama veya dokunma bittiğinde sürüklemeyi durdurur
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
         dragging = false
         savedPosition = mainFrame.Position
     end
 end)
+
 
 -- ANA DÖNGÜLER
 runService.Heartbeat:Connect(function()
@@ -1724,4 +1798,3 @@ end
 lplayer.CharacterAdded:Connect(onCharacterAdded)
 if lplayer.Character then onCharacterAdded(lplayer.Character) end
 
-print("⚡ WESTGO HUB v3.0 - Kill Aura & Q Gun Kill Enabled")
