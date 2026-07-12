@@ -597,7 +597,7 @@ local function createTeleportTool()
     local tool = Instance.new("Tool")
     tool.Name = "Teleport Tool"
     tool.RequiresHandle = false
-    tool.TextureId = "rbxassetid://6034287525"
+    tool.TextureId = "rbxassetid://103880225076501"
     tool.Parent = backpack
     
     tpToolRef = tool
