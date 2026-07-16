@@ -1,1 +1,972 @@
-["nahsan._"]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local LocalizationService = game:GetService("LocalizationService")
+
+local LP = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- ============================================================
+--  DENEYİM DİLİNE GÖRE DİNAMİK ÇEVİRİ SİSTEMİ
+-- ============================================================
+local translator = nil
+local function initTranslator()
+    -- Oyuncunun deneyim dili tercihini (RobloxLocaleId) alıyoruz
+    local success, result = pcall(function()
+        return LocalizationService:GetTranslatorForPlayerAsync(LP)
+    end)
+    if success and result then
+        translator = result
+    else
+        -- Hata durumunda oyunun varsayılan yerelleştirmesini dene
+        pcall(function()
+            translator = LocalizationService:GetTranslatorForLocaleAsync(LocalizationService.RobloxLocaleId)
+        end)
+    end
+end
+initTranslator()
+
+-- Çeviri yardımcı fonksiyonu (Deneyim dilinde karşılık bulamazsa orijinal metni yazar)
+local function translate(text)
+    if translator then
+        local success, translatedText = pcall(function()
+            return translator:Translate(game, text)
+        end)
+        if success and translatedText then
+            return translatedText
+        end
+    end
+    return text
+end
+
+local Theme = {
+    Background = Color3.fromRGB(8, 8, 12),
+    Surface = Color3.fromRGB(18, 18, 26),
+    SurfaceHover = Color3.fromRGB(28, 28, 40),
+    Border = Color3.fromRGB(40, 40, 60),
+    TextPrimary = Color3.fromRGB(255, 255, 255),
+    TextSecondary = Color3.fromRGB(160, 160, 180),
+    Accent = Color3.fromRGB(138, 43, 226),
+    AccentLight = Color3.fromRGB(180, 100, 255),
+    Success = Color3.fromRGB(52, 211, 153),
+    Error = Color3.fromRGB(248, 113, 113),
+}
+
+local Icons = {
+    Eye = "rbxassetid://116707863154642",
+    Close = "rbxassetid://97265398503265",
+    Minimize = "rbxassetid://88195770017771",
+    Maximize = "rbxassetid://113322993564957",
+    Stop = "rbxassetid://14996669677",
+    Players = "rbxassetid://11577689639",
+    Search = "rbxassetid://112780490255100",
+    Help = "rbxassetid://136449956980028"
+}
+
+local spectating = false
+local minimized = false
+local currentTarget = nil
+local targetCharConnection = nil
+local cameraForceConnection = nil
+local playerButtons = {}
+
+-- ============================================================
+--  DÖNEN KENAR ANIMASYONU FONKSİYONU
+-- ============================================================
+local function createRotatingBorder(parent, thickness, accentColor, speed)
+    speed = speed or 95
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = thickness
+    stroke.Color = accentColor
+    stroke.Transparency = 0.2
+    stroke.Parent = parent
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(0.5, accentColor),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+    }
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.7),
+        NumberSequenceKeypoint.new(0.4, 0.1),
+        NumberSequenceKeypoint.new(0.6, 0.1),
+        NumberSequenceKeypoint.new(1, 0.7)
+    }
+    gradient.Rotation = 0
+    gradient.Parent = stroke
+
+    local connection
+    connection = RunService.Heartbeat:Connect(function(dt)
+        if not stroke or not stroke.Parent then
+            connection:Disconnect()
+            return
+        end
+        gradient.Rotation = (gradient.Rotation + speed * dt) % 360
+    end)
+    
+    return stroke
+end
+
+-- UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VoidSpectate"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+screenGui.DisplayOrder = 99999
+screenGui.Parent = LP:WaitForChild("PlayerGui")
+
+-- ============================================================
+--  INTRO ANIMATION
+-- ============================================================
+local introFrame = Instance.new("Frame")
+introFrame.Name = "Intro"
+introFrame.Size = UDim2.new(0, 260, 0, 120)
+introFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+introFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+introFrame.BackgroundColor3 = Theme.Background
+introFrame.BorderSizePixel = 0
+introFrame.BackgroundTransparency = 1
+introFrame.ClipsDescendants = true
+introFrame.ZIndex = 100
+introFrame.Parent = screenGui
+
+Instance.new("UICorner", introFrame).CornerRadius = UDim.new(0, 16)
+
+local introStroke = Instance.new("UIStroke")
+introStroke.Color = Theme.Accent
+introStroke.Thickness = 2
+introStroke.Transparency = 1
+introStroke.Parent = introFrame
+
+local introText = Instance.new("TextLabel")
+introText.Size = UDim2.new(1, 0, 1, 0)
+introText.BackgroundTransparency = 1
+introText.Text = "VOID v2.1"
+introText.TextColor3 = Theme.AccentLight
+introText.TextSize = 1
+introText.Font = Enum.Font.GothamBlack
+introText.TextTransparency = 1
+introText.ZIndex = 101
+introText.Parent = introFrame
+
+-- ============================================================
+--  MAIN PANEL
+-- ============================================================
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "Panel"
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Size = UDim2.new(0, 0, 0, 0)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.BackgroundColor3 = Theme.Background
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Visible = false
+mainFrame.ZIndex = 50
+mainFrame.Parent = screenGui
+
+local originalSize = UDim2.new(0, 340, 0, 280)
+local minimizedSize = UDim2.new(0, 160, 0, 40)
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+createRotatingBorder(mainFrame, 2, Theme.Accent, 100)
+
+-- Header
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 40)
+header.BackgroundColor3 = Theme.Surface
+header.BackgroundTransparency = 0.3
+header.BorderSizePixel = 0
+header.ZIndex = 51
+header.Parent = mainFrame
+
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+local headerFix = Instance.new("Frame")
+headerFix.Size = UDim2.new(1, 0, 0, 10)
+headerFix.Position = UDim2.new(0, 0, 1, -10)
+headerFix.BackgroundColor3 = Theme.Surface
+headerFix.BackgroundTransparency = 0.3
+headerFix.BorderSizePixel = 0
+headerFix.ZIndex = 51
+headerFix.Parent = header
+
+-- Title Group
+local titleGroup = Instance.new("Frame")
+titleGroup.Size = UDim2.new(1, -120, 1, 0)
+titleGroup.Position = UDim2.new(0, 12, 0, 0)
+titleGroup.BackgroundTransparency = 1
+titleGroup.ZIndex = 52
+titleGroup.Parent = header
+
+local titleIcon = Instance.new("ImageLabel")
+titleIcon.Size = UDim2.new(0, 18, 0, 18)
+titleIcon.Position = UDim2.new(0, 0, 0.5, -9)
+titleIcon.BackgroundTransparency = 1
+titleIcon.Image = Icons.Eye
+titleIcon.ImageColor3 = Theme.AccentLight
+titleIcon.ZIndex = 53
+titleIcon.Parent = titleGroup
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -24, 1, 0)
+title.Position = UDim2.new(0, 24, 0, 0)
+title.Text = translate("player view | v 1.2")
+title.TextColor3 = Theme.TextPrimary
+title.TextSize = 13
+title.Font = Enum.Font.GothamBold
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 53
+title.Parent = titleGroup
+
+-- Mini Title
+local miniTitle = Instance.new("TextLabel")
+miniTitle.Size = UDim2.new(1, -50, 1, 0)
+miniTitle.Position = UDim2.new(0, 12, 0, 0)
+miniTitle.Text = "Void"
+miniTitle.TextColor3 = Theme.AccentLight
+miniTitle.TextSize = 12
+miniTitle.Font = Enum.Font.GothamBold
+miniTitle.BackgroundTransparency = 1
+miniTitle.TextXAlignment = Enum.TextXAlignment.Left
+miniTitle.ZIndex = 52
+miniTitle.Visible = false
+miniTitle.Parent = header
+
+-- Close Button
+local closeBtn = Instance.new("ImageButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -36, 0.5, -14)
+closeBtn.BackgroundColor3 = Theme.SurfaceHover
+closeBtn.BackgroundTransparency = 0.3
+closeBtn.Image = Icons.Close
+closeBtn.ImageColor3 = Theme.Error
+closeBtn.ZIndex = 52
+closeBtn.Parent = header
+
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+-- Minimize Button
+local minimizeBtn = Instance.new("ImageButton")
+minimizeBtn.Name = "MinimizeBtn"
+minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+minimizeBtn.Position = UDim2.new(1, -68, 0.5, -14)
+minimizeBtn.BackgroundColor3 = Theme.SurfaceHover
+minimizeBtn.BackgroundTransparency = 0.3
+minimizeBtn.Image = Icons.Minimize
+minimizeBtn.ImageColor3 = Theme.TextSecondary
+minimizeBtn.ZIndex = 52
+minimizeBtn.Parent = header
+
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 6)
+
+-- Help Button
+local helpBtn = Instance.new("ImageButton")
+helpBtn.Name = "HelpBtn"
+helpBtn.Size = UDim2.new(0, 28, 0, 28)
+helpBtn.Position = UDim2.new(1, -100, 0.5, -14)
+helpBtn.BackgroundColor3 = Theme.SurfaceHover
+helpBtn.BackgroundTransparency = 0.3
+helpBtn.Image = Icons.Help
+helpBtn.ImageColor3 = Theme.TextSecondary
+helpBtn.ZIndex = 52
+helpBtn.Parent = header
+
+Instance.new("UICorner", helpBtn).CornerRadius = UDim.new(0, 6)
+
+-- Scroll List
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "List"
+scrollFrame.Size = UDim2.new(1, -16, 1, -115) 
+scrollFrame.Position = UDim2.new(0, 8, 0, 48)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 3
+scrollFrame.ScrollBarImageColor3 = Theme.Accent
+scrollFrame.ScrollBarImageTransparency = 0.4
+scrollFrame.ZIndex = 51
+
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y 
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0) 
+scrollFrame.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 6)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scrollFrame
+
+local listPadding = Instance.new("UIPadding")
+listPadding.PaddingTop = UDim.new(0, 2)
+listPadding.PaddingBottom = UDim.new(0, 2)
+listPadding.Parent = scrollFrame
+
+-- Stop Button
+local stopBtn = Instance.new("TextButton")
+stopBtn.Name = "StopSpectate"
+stopBtn.Size = UDim2.new(1, -16, 0, 36)
+stopBtn.Position = UDim2.new(0, 8, 1, -44)
+stopBtn.Text = translate("Stop View")
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.TextSize = 11
+stopBtn.Font = Enum.Font.GothamBold
+stopBtn.BackgroundColor3 = Theme.Error
+stopBtn.BackgroundTransparency = 0.3
+stopBtn.BorderSizePixel = 0
+stopBtn.AutoButtonColor = false
+stopBtn.ZIndex = 51
+stopBtn.Visible = false
+stopBtn.Parent = mainFrame
+
+Instance.new("UICorner", stopBtn).CornerRadius = UDim.new(0, 10)
+
+-- ============================================================
+--  YARDIM / MAKALE PANELİ (HELP FRAME)
+-- ============================================================
+local helpFrame = Instance.new("Frame")
+helpFrame.Name = "HelpFrame"
+helpFrame.Size = UDim2.new(1, -16, 1, -56)
+helpFrame.Position = UDim2.new(0, 8, 0, 48)
+helpFrame.BackgroundColor3 = Theme.Surface
+helpFrame.BackgroundTransparency = 0.1
+helpFrame.BorderSizePixel = 0
+helpFrame.ZIndex = 60
+helpFrame.Visible = false
+helpFrame.Parent = mainFrame
+
+Instance.new("UICorner", helpFrame).CornerRadius = UDim.new(0, 10)
+
+-- Makale için Kaydırılabilir İçerik Alanı
+local helpScroll = Instance.new("ScrollingFrame")
+helpScroll.Size = UDim2.new(1, -16, 1, -40)
+helpScroll.Position = UDim2.new(0, 8, 0, 10)
+helpScroll.BackgroundTransparency = 1
+helpScroll.BorderSizePixel = 0
+helpScroll.ScrollBarThickness = 2
+helpScroll.ScrollBarImageColor3 = Theme.Accent
+helpScroll.ScrollBarImageTransparency = 0.5
+helpScroll.CanvasSize = UDim2.new(0, 0, 0, 380)
+helpScroll.ZIndex = 61
+helpScroll.Parent = helpFrame
+
+local helpLayout = Instance.new("UIListLayout")
+helpLayout.Padding = UDim.new(0, 8)
+helpLayout.SortOrder = Enum.SortOrder.LayoutOrder
+helpLayout.Parent = helpScroll
+
+-- Makale Başlığı
+local artTitle = Instance.new("TextLabel")
+artTitle.Size = UDim2.new(1, 0, 0, 24)
+artTitle.Text = translate("KULLANIM REHBERİ VE TEKNİK DETAYLAR")
+artTitle.TextColor3 = Theme.AccentLight
+artTitle.TextSize = 12
+artTitle.Font = Enum.Font.GothamBlack
+artTitle.TextXAlignment = Enum.TextXAlignment.Left
+artTitle.BackgroundTransparency = 1
+artTitle.ZIndex = 62
+artTitle.Parent = helpScroll
+
+-- Makale Metni (İçerik)
+local artBody = Instance.new("TextLabel")
+artBody.Size = UDim2.new(1, -6, 0, 290)
+artBody.Text = translate("Player View, oyun içindeki diğer kullanıcıları eşzamanlı olarak takip etmenizi sağlayan gelişmiş bir kamera manipülasyon aracıdır.\n\n") ..
+               translate("■ Kamera Kilitleme Sistemi:\n") ..
+               translate("Ana listede yer alan herhangi bir oyuncunun sağındaki 'İzle' butonuna bastığınızda, Roblox'un ana kamera modülleri devre dışı bırakılır. Kamera nesnesinin odağı, doğrudan seçilen oyuncunun ana gövdesine (Humanoid) kilitlenir. Hedef oyuncu ölse dahi, sistem canlanma anını algılar ve kamerayı otomatik olarak yeni gövdeye taşır.\n\n") ..
+               translate("■ Gerçek Zamanlı Filtreleme:\n") ..
+               translate("Sol alttaki dinamik arama kutusu, sunucuda bulunan oyuncuları karakter bazlı olarak anlık tarar. Büyük/küçük harf duyarlılığı olmadan, yazdığınız her harfte listeyi pürüzsüzce daraltır.\n\n") ..
+               translate("■ Optimizasyon & Performans:\n") ..
+               translate("Arka plandaki RenderStepped döngüleri, sadece siz izleme modundayken çalışacak şekilde dinamik olarak bağlanır ve çözülür. Bu sayede gereksiz işlemci (CPU) kullanımı engellenir.")
+artBody.TextColor3 = Theme.TextSecondary
+artBody.TextSize = 10
+artBody.Font = Enum.Font.GothamMedium
+artBody.TextWrapped = true
+artBody.TextXAlignment = Enum.TextXAlignment.Left
+artBody.TextYAlignment = Enum.TextYAlignment.Top
+artBody.BackgroundTransparency = 1
+artBody.ZIndex = 62
+artBody.Parent = helpScroll
+
+-- Makale Sonu İmza
+local artFooter = Instance.new("TextLabel")
+artFooter.Size = UDim2.new(1, 0, 0, 20)
+artFooter.Text = translate("Void Spectate Tech © 2026 • Geliştirici: void")
+artFooter.TextColor3 = Theme.Accent
+artFooter.TextSize = 10
+artFooter.Font = Enum.Font.GothamBold
+artFooter.TextXAlignment = Enum.TextXAlignment.Center
+artFooter.BackgroundTransparency = 1
+artFooter.ZIndex = 62
+artFooter.Parent = helpScroll
+
+-- ============================================================
+--  SAĞ ALT OYUNCU SAYACI
+-- ============================================================
+local counterFrame = Instance.new("Frame")
+counterFrame.Name = "PlayerCounter"
+counterFrame.Size = UDim2.new(0, 100, 0, 24)
+counterFrame.Position = UDim2.new(1, -108, 1, -30)
+counterFrame.BackgroundTransparency = 1
+counterFrame.ZIndex = 52
+counterFrame.Parent = mainFrame
+
+local counterIcon = Instance.new("ImageLabel")
+counterIcon.Size = UDim2.new(0, 14, 0, 14)
+counterIcon.Position = UDim2.new(0, 0, 0.5, -7)
+counterIcon.BackgroundTransparency = 1
+counterIcon.Image = Icons.Players
+counterIcon.ImageColor3 = Theme.AccentLight
+counterIcon.ZIndex = 53
+counterIcon.Parent = counterFrame
+
+local counterText = Instance.new("TextLabel")
+counterText.Size = UDim2.new(1, -18, 1, 0)
+counterText.Position = UDim2.new(0, 18, 0, 0)
+counterText.Text = "0 " .. translate("Oyuncu")
+counterText.TextColor3 = Theme.TextSecondary
+counterText.TextSize = 11
+counterText.Font = Enum.Font.GothamMedium
+counterText.BackgroundTransparency = 1
+counterText.TextXAlignment = Enum.TextXAlignment.Left
+counterText.ZIndex = 53
+counterText.Parent = counterFrame
+
+local function updatePlayerCount()
+    local count = #Players:GetPlayers()
+    counterText.Text = tostring(count) .. " " .. translate("Oyuncu")
+end
+
+Players.PlayerAdded:Connect(updatePlayerCount)
+Players.PlayerRemoving:Connect(updatePlayerCount)
+updatePlayerCount()
+
+-- ============================================================
+--  SOL ALT OYUNCU ARAMA (ARAMA KUTUSU & KENAR EFKETI)
+-- ============================================================
+local searchFrame = Instance.new("Frame")
+searchFrame.Name = "SearchFrame"
+searchFrame.Size = UDim2.new(0, 150, 0, 24)
+searchFrame.Position = UDim2.new(0, 8, 1, -30)
+searchFrame.BackgroundColor3 = Theme.Surface
+searchFrame.BackgroundTransparency = 0.4
+searchFrame.BorderSizePixel = 0
+searchFrame.ZIndex = 52
+searchFrame.Parent = mainFrame
+
+Instance.new("UICorner", searchFrame).CornerRadius = UDim.new(0, 6)
+
+createRotatingBorder(searchFrame, 1, Theme.Accent, 80)
+
+local searchIcon = Instance.new("ImageLabel")
+searchIcon.Size = UDim2.new(0, 14, 0, 14)
+searchIcon.Position = UDim2.new(0, 6, 0.5, -7)
+searchIcon.BackgroundTransparency = 1
+searchIcon.Image = Icons.Search
+searchIcon.ImageColor3 = Theme.TextSecondary
+searchIcon.ZIndex = 53
+searchIcon.Parent = searchFrame
+
+local searchBox = Instance.new("TextBox")
+searchBox.Size = UDim2.new(1, -28, 1, 0)
+searchBox.Position = UDim2.new(0, 24, 0, 0)
+searchBox.BackgroundTransparency = 1
+searchBox.Text = ""
+searchBox.PlaceholderText = translate("Oyuncu ara...")
+searchBox.PlaceholderColor3 = Theme.TextSecondary
+searchBox.TextColor3 = Theme.TextPrimary
+searchBox.TextSize = 11
+searchBox.Font = Enum.Font.GothamMedium
+searchBox.TextXAlignment = Enum.TextXAlignment.Left
+searchBox.ClearTextOnFocus = false
+searchBox.ZIndex = 53
+searchBox.Parent = searchFrame
+
+local function filterPlayers()
+    local query = string.lower(searchBox.Text)
+    for player, elements in pairs(playerButtons) do
+        if query == "" then
+            elements.Row.Visible = true
+        else
+            local nameLower = string.lower(player.Name)
+            local displayLower = string.lower(player.DisplayName)
+            
+            if string.sub(nameLower, 1, #query) == query or string.sub(displayLower, 1, #query) == query then
+                elements.Row.Visible = true
+            else
+                elements.Row.Visible = false
+            end
+        end
+    end
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(filterPlayers)
+
+-- ============================================================
+--  SPECTATE LOGIC
+-- ============================================================
+local stopSpectate, startSpectate, updateListVisuals
+
+stopSpectate = function()
+    if not spectating then return end
+    spectating = false
+    currentTarget = nil
+    
+    if cameraForceConnection then
+        cameraForceConnection:Disconnect()
+        cameraForceConnection = nil
+    end
+    
+    if targetCharConnection then
+        targetCharConnection:Disconnect()
+        targetCharConnection = nil
+    end
+    
+    Camera.CameraType = Enum.CameraType.Custom
+    local char = LP.Character
+    if char and char:FindFirstChild("Humanoid") then
+        Camera.CameraSubject = char.Humanoid
+    end
+    
+    stopBtn.Visible = false
+    counterFrame.Visible = true 
+    searchFrame.Visible = true
+    updateListVisuals()
+end
+
+startSpectate = function(targetPlayer)
+    if targetPlayer == LP then return end
+    stopSpectate()
+    
+    local function lockCamera()
+        if targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") then
+            Camera.CameraType = Enum.CameraType.Custom
+            Camera.CameraSubject = targetPlayer.Character.Humanoid
+        else
+            stopSpectate()
+        end
+    end
+    
+    lockCamera()
+    spectating = true
+    currentTarget = targetPlayer
+    if not minimized then
+        stopBtn.Visible = true
+        counterFrame.Visible = false 
+        searchFrame.Visible = false
+    end
+    updateListVisuals()
+    
+    cameraForceConnection = RunService.RenderStepped:Connect(function()
+        if spectating and currentTarget == targetPlayer then
+            lockCamera()
+        elseif cameraForceConnection then
+            cameraForceConnection:Disconnect()
+            cameraForceConnection = nil
+        end
+    end)
+    
+    targetCharConnection = targetPlayer.CharacterAdded:Connect(function()
+        task.wait(0.3)
+        if spectating and currentTarget == targetPlayer then
+            lockCamera()
+        end
+    end)
+end
+
+-- ============================================================
+--  BUTTON EVENTS
+-- ============================================================
+
+closeBtn.MouseEnter:Connect(function()
+    TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+end)
+closeBtn.MouseLeave:Connect(function()
+    TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3, ImageColor3 = Theme.Error}):Play()
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    stopSpectate()
+    screenGui:Destroy()
+end)
+
+minimizeBtn.MouseEnter:Connect(function()
+    TweenService:Create(minimizeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, ImageColor3 = Theme.AccentLight}):Play()
+end)
+minimizeBtn.MouseLeave:Connect(function()
+    TweenService:Create(minimizeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3, ImageColor3 = Theme.TextSecondary}):Play()
+end)
+
+helpBtn.MouseEnter:Connect(function()
+    TweenService:Create(helpBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, ImageColor3 = Theme.AccentLight}):Play()
+end)
+helpBtn.MouseLeave:Connect(function()
+    TweenService:Create(helpBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3, ImageColor3 = Theme.TextSecondary}):Play()
+end)
+
+helpBtn.MouseButton1Click:Connect(function()
+    if helpFrame.Visible then
+        helpFrame.Visible = false
+        scrollFrame.Visible = true
+        if spectating then
+            stopBtn.Visible = true
+        else
+            searchFrame.Visible = true
+            counterFrame.Visible = true
+        end
+    else
+        helpFrame.Visible = true
+        scrollFrame.Visible = false
+        stopBtn.Visible = false
+        searchFrame.Visible = false
+        counterFrame.Visible = false
+    end
+end)
+
+stopBtn.MouseEnter:Connect(function()
+    TweenService:Create(stopBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
+end)
+stopBtn.MouseLeave:Connect(function()
+    TweenService:Create(stopBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+end)
+stopBtn.MouseButton1Click:Connect(function()
+    stopSpectate()
+end)
+
+-- ============================================================
+--  MINIMIZE / MAXIMIZE 
+-- ============================================================
+minimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    
+    if minimized then
+        titleGroup.Visible = false
+        closeBtn.Visible = false
+        helpBtn.Visible = false
+        scrollFrame.Visible = false
+        stopBtn.Visible = false
+        helpFrame.Visible = false
+        headerFix.Visible = false
+        counterFrame.Visible = false 
+        searchFrame.Visible = false
+        
+        miniTitle.Visible = true
+        minimizeBtn.Image = Icons.Maximize
+        minimizeBtn.Position = UDim2.new(1, -36, 0.5, -14)
+        
+        TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = minimizedSize
+        }):Play()
+        
+    else
+        mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        
+        minimizeBtn.Image = Icons.Minimize
+        minimizeBtn.Position = UDim2.new(1, -68, 0.5, -14)
+        
+        local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = originalSize
+        })
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            if not minimized then
+                titleGroup.Visible = true
+                closeBtn.Visible = true
+                helpBtn.Visible = true
+                headerFix.Visible = true
+                
+                if helpFrame.Visible then
+                    helpFrame.Visible = true
+                    scrollFrame.Visible = false
+                else
+                    scrollFrame.Visible = true
+                    if spectating then
+                        stopBtn.Visible = true
+                    else
+                        counterFrame.Visible = true 
+                        searchFrame.Visible = true
+                    end
+                end
+                
+                miniTitle.Visible = false
+            end
+        end)
+    end
+end)
+
+-- ============================================================
+--  DRAG SYSTEM - EKRAN SINIRLI + MOBIL FIX
+-- ============================================================
+local activeInput = nil
+local dragStart, startPos
+
+local function updateDrag(input)
+    if not activeInput then return end
+    local delta = input.Position - dragStart
+    local rawX = startPos.X.Offset + delta.X
+    local rawY = startPos.Y.Offset + delta.Y
+    
+    local viewport = Camera.ViewportSize
+    local absSize = mainFrame.AbsoluteSize
+    
+    local centerX = viewport.X/2 + rawX
+    local centerY = viewport.Y/2 + rawY
+    
+    local halfW = absSize.X / 2
+    local halfH = absSize.Y / 2
+    
+    centerX = math.clamp(centerX, halfW, viewport.X - halfW)
+    centerY = math.clamp(centerY, halfH, viewport.Y - halfH)
+    
+    mainFrame.Position = UDim2.new(0.5, centerX - viewport.X/2, 0.5, centerY - viewport.Y/2)
+end
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        activeInput = input
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == activeInput then
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            updateDrag(input)
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input == activeInput then
+        activeInput = nil
+    end
+end)
+
+-- ============================================================
+--  PLAYER LIST
+-- ============================================================
+updateListVisuals = function()
+    for player, elements in pairs(playerButtons) do
+        if player == currentTarget then
+            elements.Row.BackgroundColor3 = Theme.Accent
+            elements.SpecBtn.Text = translate("İzleniyor")
+            elements.SpecBtn.BackgroundColor3 = Theme.Error
+        else
+            elements.Row.BackgroundColor3 = Theme.Surface
+            elements.SpecBtn.Text = translate("İzle")
+            elements.SpecBtn.BackgroundColor3 = Theme.Accent
+        end
+    end
+end
+
+local function createPlayerRow(player)
+    if player == LP then return end
+    
+    local row = Instance.new("Frame")
+    row.Name = player.Name .. "_Row"
+    row.Size = UDim2.new(1, 0, 0, 42)
+    row.BackgroundColor3 = Theme.Surface
+    row.BackgroundTransparency = 0.2
+    row.BorderSizePixel = 0
+    row.ZIndex = 52
+    row.LayoutOrder = player.Name:byte(1)
+    
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+    
+    local avatar = Instance.new("ImageLabel")
+    avatar.Size = UDim2.new(0, 28, 0, 28)
+    avatar.Position = UDim2.new(0, 6, 0.5, -14)
+    avatar.BackgroundColor3 = Theme.SurfaceHover
+    avatar.BorderSizePixel = 0
+    avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=150&h=150"
+    avatar.ZIndex = 53
+    avatar.Parent = row
+    
+    Instance.new("UICorner", avatar).CornerRadius = UDim.new(0, 6)
+    
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, -140, 0, 18)
+    nameLabel.Position = UDim2.new(0, 40, 0, 3)
+    nameLabel.Text = player.DisplayName ~= player.Name and (player.DisplayName .. " (@" .. player.Name .. ")") or player.Name
+    nameLabel.TextColor3 = Theme.TextPrimary
+    nameLabel.TextSize = 12
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    nameLabel.ZIndex = 53
+    nameLabel.Parent = row
+    
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, -140, 0, 14)
+    statusLabel.Position = UDim2.new(0, 40, 0, 21)
+    statusLabel.Text = translate("Canlı")
+    statusLabel.TextColor3 = Theme.Success
+    statusLabel.TextSize = 10
+    statusLabel.Font = Enum.Font.GothamMedium
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 53
+    statusLabel.Parent = row
+    
+    local specBtn = Instance.new("TextButton")
+    specBtn.Name = "SpectateBtn"
+    specBtn.Size = UDim2.new(0, 80, 0, 26)
+    specBtn.Position = UDim2.new(1, -86, 0.5, -13)
+    specBtn.Text = translate("İzle")
+    specBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    specBtn.TextSize = 11
+    specBtn.Font = Enum.Font.GothamBold
+    specBtn.BackgroundColor3 = Theme.Accent
+    specBtn.BackgroundTransparency = 0.2
+    specBtn.BorderSizePixel = 0
+    specBtn.AutoButtonColor = false
+    specBtn.ZIndex = 53
+    specBtn.Parent = row
+    
+    Instance.new("UICorner", specBtn).CornerRadius = UDim.new(0, 6)
+    
+    row.MouseEnter:Connect(function()
+        if currentTarget ~= player then
+            TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Theme.SurfaceHover}):Play()
+        end
+    end)
+    row.MouseLeave:Connect(function()
+        if currentTarget ~= player then
+            TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Surface}):Play()
+        end
+    end)
+    
+    specBtn.MouseEnter:Connect(function()
+        TweenService:Create(specBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
+    end)
+    specBtn.MouseLeave:Connect(function()
+        TweenService:Create(specBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
+    end)
+    
+    specBtn.MouseButton1Click:Connect(function()
+        startSpectate(player)
+    end)
+    
+    playerButtons[player] = {
+        Row = row,
+        StatusLabel = statusLabel,
+        SpecBtn = specBtn
+    }
+    
+    row.Parent = scrollFrame
+    
+    local function updateStatus()
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            if player.Character.Humanoid.Health > 0 then
+                statusLabel.Text = translate("Canlı")
+                statusLabel.TextColor3 = Theme.Success
+                specBtn.Visible = true
+            else
+                statusLabel.Text = translate("Ölü")
+                statusLabel.TextColor3 = Theme.Error
+                specBtn.Visible = false
+                if currentTarget == player then
+                    stopSpectate()
+                end
+            end
+        else
+            statusLabel.Text = translate("Yükleniyor...")
+            statusLabel.TextColor3 = Theme.TextSecondary 
+            specBtn.Visible = false
+        end
+    end
+    
+    if player.Character then
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid:GetPropertyChangedSignal("Health"):Connect(updateStatus)
+        end
+    end
+    
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.1)
+        local humanoid = char:WaitForChild("Humanoid", 5)
+        if humanoid then
+            humanoid:GetPropertyChangedSignal("Health"):Connect(updateStatus)
+            updateStatus()
+        end
+    end)
+    
+    player.CharacterRemoving:Connect(updateStatus)
+    updateStatus()
+    
+    filterPlayers()
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LP then
+        createPlayerRow(player)
+    end
+end
+
+Players.PlayerAdded:Connect(createPlayerRow)
+
+Players.PlayerRemoving:Connect(function(player)
+    if playerButtons[player] then
+        playerButtons[player].Row:Destroy()
+        playerButtons[player] = nil
+    end
+    if currentTarget == player then
+        stopSpectate()
+    end
+end)
+
+-- ============================================================
+--  INTRO PLAY + MAIN OPEN
+-- ============================================================
+task.spawn(function()
+    TweenService:Create(introFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0
+    }):Play()
+    TweenService:Create(introStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Transparency = 0.3
+    }):Play()
+    
+    task.wait(0.2)
+    
+    TweenService:Create(introText, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TextSize = 36,
+        TextTransparency = 0
+    }):Play()
+    
+    task.wait(1.4)
+    
+    TweenService:Create(introText, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        TextSize = 48,
+        TextTransparency = 1
+    }):Play()
+    TweenService:Create(introFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
+    TweenService:Create(introStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Transparency = 1
+    }):Play()
+    
+    task.wait(0.4)
+    introFrame:Destroy()
+    
+    mainFrame.Visible = true
+    TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = originalSize
+    }):Play()
+end)
+
+-- ============================================================
+--  GELİŞTİRİCİ VOID SİGNA-FUNCTION
+-- ============================================================
+local function void()
+    print("[Void Spectate System]: Successfully loaded and translated to player's game language preference.")
+end
+void()
