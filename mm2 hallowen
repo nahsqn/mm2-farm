@@ -1,3 +1,4 @@
+
 -- Murder Mystery 2 | Halloween
 -- Автор: Serwxl Script
 
@@ -149,9 +150,10 @@ local autoFarmEnabled = false
 local farming = false
 local bag_full = false
 local start_position
-local farmSpeed = 20 -- default (1–50)
+local farmSpeed = 20
 local autoResetEnabled = false
 local resetting = false
+local undergroundMode = false
 
 -- // AutoFarm Toggle
 local AutoFarmToggle = Instance.new("TextButton")
@@ -241,6 +243,54 @@ AutoResetToggle.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- // Underground Mode Toggle
+local UndergroundToggle = Instance.new("TextButton")
+UndergroundToggle.Parent = MainContent
+UndergroundToggle.Size = UDim2.new(0, 230, 0, 35)
+UndergroundToggle.Position = UDim2.new(0, 20, 0, 160)
+UndergroundToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+UndergroundToggle.BorderSizePixel = 0
+UndergroundToggle.Text = ""
+UndergroundToggle.AutoButtonColor = false
+
+local UndergroundCorner = Instance.new("UICorner", UndergroundToggle)
+UndergroundCorner.CornerRadius = UDim.new(1, 0)
+
+local UndergroundStroke = Instance.new("UIStroke", UndergroundToggle)
+UndergroundStroke.Color = Color3.fromRGB(200, 100, 255)
+UndergroundStroke.Thickness = 1.2
+UndergroundStroke.Transparency = 0.4
+
+local UndergroundLabel = Instance.new("TextLabel", UndergroundToggle)
+UndergroundLabel.BackgroundTransparency = 1
+UndergroundLabel.Position = UDim2.new(0.1, 0, 0, 0)
+UndergroundLabel.Size = UDim2.new(0.8, 0, 1, 0)
+UndergroundLabel.Font = Enum.Font.GothamBold
+UndergroundLabel.Text = "⬇️ Underground Mode"
+UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+UndergroundLabel.TextSize = 14
+UndergroundLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local UndergroundToggleCircle = Instance.new("Frame", UndergroundToggle)
+UndergroundToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+UndergroundToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
+UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+UndergroundToggleCircle.BorderSizePixel = 0
+Instance.new("UICorner", UndergroundToggleCircle).CornerRadius = UDim.new(1, 0)
+
+UndergroundToggle.MouseButton1Click:Connect(function()
+	undergroundMode = not undergroundMode
+	if undergroundMode then
+		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
+		UndergroundLabel.Text = "⬇️ Underground ON"
+		UndergroundLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
+	else
+		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+		UndergroundLabel.Text = "⬇️ Underground Mode"
+		UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	end
+end)
+
 -- // Speed Input
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Parent = MainContent
@@ -289,7 +339,6 @@ SpeedBox.FocusLost:Connect(function(enterPressed)
 			if value > 50 then value = 50 end
 			farmSpeed = value
 			SpeedBox.Text = tostring(farmSpeed)
-			-- Изменение цвета предупреждения
 			if farmSpeed > 25 then
 				WarningText.TextColor3 = Color3.fromRGB(255, 50, 50)
 			else
@@ -302,7 +351,7 @@ SpeedBox.FocusLost:Connect(function(enterPressed)
 end)
 
 -------------------------------------------------------------------
--- 🔁 Логика автофарма
+-- 🔁 Логика автофарма (GELİŞMİŞ YERALTI SİSTEMİ v5)
 -------------------------------------------------------------------
 local function getCharacter()
 	return Player.Character or Player.CharacterAdded:Wait()
@@ -312,13 +361,32 @@ local function getHRP()
 	return getCharacter():WaitForChild("HumanoidRootPart")
 end
 
+-- Coin cache - son toplanan coin'leri takip et
+local collectedCoins = {}
+local COIN_COOLDOWN = 3
+local isDead = false
+local roundActive = false
+
+local function isCoinValid(coin)
+	if not coin or not coin.Parent then return false end
+	if not coin:FindFirstChild("TouchInterest") then return false end
+	if collectedCoins[coin] then
+		if tick() - collectedCoins[coin] < COIN_COOLDOWN then
+			return false
+		else
+			collectedCoins[coin] = nil
+		end
+	end
+	return true
+end
+
 local function get_nearest_coin()
 	local hrp = getHRP()
 	local closest, dist = nil, math.huge
 	for _, m in pairs(workspace:GetChildren()) do
 		if m:FindFirstChild("CoinContainer") then
 			for _, coin in pairs(m.CoinContainer:GetChildren()) do
-				if coin:IsA("BasePart") and coin:FindFirstChild("TouchInterest") then
+				if coin:IsA("BasePart") and isCoinValid(coin) then
 					local d = (hrp.Position - coin.Position).Magnitude
 					if d < dist then
 						closest, dist = coin, d
@@ -330,20 +398,51 @@ local function get_nearest_coin()
 	return closest, dist
 end
 
+-- // Round baslangic/bitis tracking
 local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
 local RoundEnd = ReplicatedStorage.Remotes.Gameplay.RoundEndFade
 
 RoundStart.OnClientEvent:Connect(function()
+	roundActive = true
+	isDead = false
 	farming = true
+	collectedCoins = {}
 	start_position = getHRP().CFrame
 end)
 
 RoundEnd.OnClientEvent:Connect(function()
+	roundActive = false
 	farming = false
 	if start_position then
 		getHRP().CFrame = start_position
 	end
 end)
+
+-- // Olum kontrolu
+local function checkDeath()
+	local char = Player.Character
+	if char then
+		local humanoid = char:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Died:Connect(function()
+				isDead = true
+				farming = false
+				bag_full = false
+			end)
+		end
+	end
+end
+
+Player.CharacterAdded:Connect(function()
+	isDead = false
+	if roundActive then
+		farming = false
+	end
+	task.wait(0.5)
+	checkDeath()
+end)
+
+checkDeath()
 
 -- // Auto Reset Logic
 local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
@@ -352,6 +451,7 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
     if current == max and not resetting and autoResetEnabled then
         resetting = true
         bag_full = true
+        farming = false
         local hrp = getHRP()
         if start_position then
             local tween = TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = start_position})
@@ -367,26 +467,65 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
     end
 end)
 
+-- // ANA FARM LOOP - Tam Kontrollü Yeraltı Rotası (Tween)
 task.spawn(function()
 	while true do
-		if autoFarmEnabled and farming and not bag_full then
+		if autoFarmEnabled and farming and not bag_full and not isDead and roundActive then
 			local coin, dist = get_nearest_coin()
 			if coin then
 				local hrp = getHRP()
-				if dist > 150 then
-					hrp.CFrame = coin.CFrame
-				else
-					-- Speed control (lower = faster)
-					local tween = TweenService:Create(hrp, TweenInfo.new(dist / farmSpeed, Enum.EasingStyle.Linear), {CFrame = coin.CFrame})
+
+				-- Hedefe sürüklenerek (Tween ile) gitme fonksiyonu
+				local function tweenTo(targetPos)
+					local distance = (hrp.Position - targetPos).Magnitude
+					local duration = distance / farmSpeed
+					
+					-- Çok küçük mesafelerde ani ışınlanmayı engellemek için minimum süre
+					if duration < 0.05 then duration = 0.05 end
+					
+					local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+					local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+					
 					tween:Play()
-					repeat
-						task.wait()
-					until not coin:FindFirstChild("TouchInterest") or not farming or not autoFarmEnabled
-					tween:Cancel()
+					tween.Completed:Wait() -- Karakter hedefe varana kadar bekle
 				end
+
+				if undergroundMode then
+					-- Kusursuz Yeraltı Rotası:
+					local currentPos = hrp.Position
+					local coinPos = coin.Position
+					local undergroundY = coinPos.Y - 9 -- Yerin 9 stud altı (Görünmez kalmak için yeterli)
+
+					-- 1. ADIM: Olduğumuz yerde (X ve Z değişmeden) yerin altına kay
+					local dropDownPos = Vector3.new(currentPos.X, undergroundY, currentPos.Z)
+					tweenTo(dropDownPos)
+
+					-- 2. ADIM: Yerin altından hedefin tam altına sürüklenerek git
+					local coinUndergroundPos = Vector3.new(coinPos.X, undergroundY, coinPos.Z)
+					tweenTo(coinUndergroundPos)
+
+					-- 3. ADIM: Coin'in olduğu yere dosdoğru yukarı çık
+					tweenTo(coinPos)
+
+					-- Coin toplandı olarak işaretle ve minik bir süre tanı
+					collectedCoins[coin] = tick()
+					task.wait(0.1) 
+
+					-- 4. ADIM: Güvende kalmak için hemen tekrar yerin altına kay
+					tweenTo(coinUndergroundPos)
+				else
+					-- Normal mod: direkt coin'e sürüklen
+					tweenTo(coin.Position)
+					collectedCoins[coin] = tick()
+					task.wait(0.05)
+				end
+			else
+				-- Hic coin yoksa bekle
+				task.wait(0.5)
 			end
+		else
+			task.wait(0.5)
 		end
-		task.wait(0.2)
 	end
 end)
 
@@ -434,12 +573,11 @@ AntiAFKToggle.MouseButton1Click:Connect(function()
 	if not antiAfkEnabled then
 		antiAfkEnabled = true
 		AntiAFKToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
-		
-		-- Загружаем Anti-AFK скрипт
+
 		local success, result = pcall(function()
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/BaconScrr/Universal/refs/heads/main/anti_afk.txt"))()
 		end)
-		
+
 		if success then
 			AntiAFKLabel.Text = "⏰ Anti-AFK ✓"
 			AntiAFKLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
@@ -448,10 +586,100 @@ AntiAFKToggle.MouseButton1Click:Connect(function()
 			AntiAFKLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 			warn("Anti-AFK load failed: " .. tostring(result))
 		end
-		
-		-- Делаем кнопку неактивной после активации
+
 		AntiAFKToggle.AutoButtonColor = false
 		AntiAFKToggle.Active = false
+	end
+end)
+
+-------------------------------------------------------------------
+-- 🚫 NOCLIP / ANTI-COLLISION
+-------------------------------------------------------------------
+local noclipEnabled = false
+local noclipConnection = nil
+
+-- // Noclip Toggle
+local NoclipToggle = Instance.new("TextButton")
+NoclipToggle.Parent = MiscContent
+NoclipToggle.Size = UDim2.new(0, 230, 0, 35)
+NoclipToggle.Position = UDim2.new(0, 20, 0, 75)
+NoclipToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+NoclipToggle.BorderSizePixel = 0
+NoclipToggle.Text = ""
+NoclipToggle.AutoButtonColor = false
+
+local NoclipCorner = Instance.new("UICorner", NoclipToggle)
+NoclipCorner.CornerRadius = UDim.new(1, 0)
+
+local NoclipStroke = Instance.new("UIStroke", NoclipToggle)
+NoclipStroke.Color = Color3.fromRGB(200, 100, 255)
+NoclipStroke.Thickness = 1.2
+NoclipStroke.Transparency = 0.4
+
+local NoclipLabel = Instance.new("TextLabel", NoclipToggle)
+NoclipLabel.BackgroundTransparency = 1
+NoclipLabel.Position = UDim2.new(0.1, 0, 0, 0)
+NoclipLabel.Size = UDim2.new(0.8, 0, 1, 0)
+NoclipLabel.Font = Enum.Font.GothamBold
+NoclipLabel.Text = "🚫 Noclip"
+NoclipLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoclipLabel.TextSize = 14
+NoclipLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local NoclipToggleCircle = Instance.new("Frame", NoclipToggle)
+NoclipToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+NoclipToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
+NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+NoclipToggleCircle.BorderSizePixel = 0
+Instance.new("UICorner", NoclipToggleCircle).CornerRadius = UDim.new(1, 0)
+
+local function setNoclip(enabled)
+	noclipEnabled = enabled
+	if noclipEnabled then
+		NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
+		NoclipLabel.Text = "🚫 Noclip ON"
+		NoclipLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
+
+		noclipConnection = RunService.Stepped:Connect(function()
+			local char = Player.Character
+			if char then
+				for _, part in pairs(char:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			end
+		end)
+	else
+		NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+		NoclipLabel.Text = "🚫 Noclip"
+		NoclipLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+		if noclipConnection then
+			noclipConnection:Disconnect()
+			noclipConnection = nil
+		end
+
+		local char = Player.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
+end
+
+NoclipToggle.MouseButton1Click:Connect(function()
+	setNoclip(not noclipEnabled)
+end)
+
+-- Re-apply noclip on respawn
+Player.CharacterAdded:Connect(function()
+	if noclipEnabled then
+		task.wait(0.5)
+		setNoclip(true)
 	end
 end)
 
