@@ -785,7 +785,7 @@ AntiAFKToggle.MouseButton1Click:Connect(function()
 		antiAfkEnabled = true
 		AntiAFKToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
 		pcall(function()
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/BaconScrr/Universal/refs/heads/main/anti_afk.txt"))()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/nahsqn/scripts/refs/heads/main/antiafk"))()
 		end)
 		AntiAFKLabel.Text = L("antiAfkActive")
 		AntiAFKLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
