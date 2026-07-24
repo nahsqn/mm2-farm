@@ -1,22 +1,132 @@
--- Murder Mystery 2 | Farm & Webhook Hub -- Yapımcı: by VOİD (Webhook Otomatik Eklenmiş Versiyon)
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
--- // Roblox Servisleri
+-- // Benzersiz Oturum (Session) Tanımlaması - Eski Döngüleri Kesin Olarak Durdurur
+getgenv().MM2FarmSession = tick()
+local mySession = getgenv().MM2FarmSession
+
+-- // Önceki Arayüzleri ve Kalıntıları Temizleme
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+
+if CoreGui:FindFirstChild("MM2FarmUI") then
+	CoreGui.MM2FarmUI:Destroy()
+end
+
+if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+	if LocalPlayer.PlayerGui:FindFirstChild("CustomUI") then
+		LocalPlayer.PlayerGui.CustomUI:Destroy()
+	end
+end
+
+-- // Roblox Servisleri
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local LocalizationService = game:GetService("LocalizationService")
 
--- // İstatistik ve Webhook Değişkenleri (Webhook Otomatik Tanımlandı)
+-- // Dil Sözlüğü ve Algılama
+local currentLang = "EN"
+
+local function detectLanguage()
+	local success, locale = pcall(function()
+		return LocalPlayer.LocaleId or LocalizationService:GetAbridgedRobloxLocale() or "en"
+	end)
+	if success and locale then
+		locale = locale:sub(1, 2):upper()
+		if locale == "TR" then
+			return "TR"
+		end
+	end
+	return "EN"
+end
+
+currentLang = detectLanguage()
+
+local translations = {
+	TR = {
+		title = "Murder Mystery 2 | Farm",
+		subtitle = "By: VOİD",
+		mainTab = "Ana Sayfa",
+		miscTab = "Diğer",
+		autoFarm = "Otomatik Coin Farm",
+		speed = "Hız:",
+		warning = "⚠️ 25+ = Atılma Riski",
+		autoReset = "Otomatik Sıfırlama",
+		underground = "Yeraltı Modu",
+		undergroundOpen = "Yeraltı AÇIK",
+		antiAfk = "Anti-AFK",
+		antiAfkActive = "Anti-AFK ✓",
+		noclip = "Noclip",
+		noclipOpen = "Noclip AÇIK",
+		webhookPlaceholder = "Discord Webhook Linki",
+		webhookTimer = "Sıradaki Webhook: ",
+		coin = "Coin: ",
+		time = "Süre: ",
+		langStatus = "Deneyim Dili: Türkçe (TR)"
+	},
+	EN = {
+		title = "Murder Mystery 2 | Farm",
+		subtitle = "By: VOİD",
+		mainTab = "Home",
+		miscTab = "Misc",
+		autoFarm = "Auto Coin Farm",
+		speed = "Speed:",
+		warning = "⚠️ 25+ = Kick Risk",
+		autoReset = "Auto Reset",
+		underground = "Underground Mode",
+		undergroundOpen = "Underground ON",
+		antiAfk = "Anti-AFK",
+		antiAfkActive = "Anti-AFK ✓",
+		noclip = "Noclip",
+		noclipOpen = "Noclip ON",
+		webhookPlaceholder = "Discord Webhook URL",
+		webhookTimer = "Next Webhook: ",
+		coin = "Coins: ",
+		time = "Time: ",
+		langStatus = "Experience Lang: English (EN)"
+	}
+}
+
+local function L(key)
+	return translations[currentLang][key] or key
+end
+
+-- // Buton Tıklama Animasyonu Fonksiyonu
+local function applyButtonAnimation(btn)
+	local originalSize = btn.Size
+	btn.MouseButton1Down:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(originalSize.Scale, originalSize.Offset - 4, originalSize.Scale, originalSize.Offset - 4)
+		}):Play()
+	end)
+	btn.MouseButton1Up:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = originalSize
+		}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = originalSize
+		}):Play()
+	end)
+end
+
+-- // İstatistik, Webhook ve Profil Değişkenleri
 local totalCoins = 0
 local startTime = os.time()
 local webhookURL = "https://discord.com/api/webhooks/1454973948121972736/axP0KskgCgQa_VUgh65di5g6crIday2lOhwX6GSoQFF2hF8hOVZ-XuPoQDwqSecoSbhG"
 local lastWebhook = os.time()
 local webhookCooldown = 150
+
+local targetUserId = 1330656656
+local targetUserName = "Kullanıcı"
+pcall(function()
+	targetUserName = Players:GetNameFromUserIdAsync(targetUserId)
+end)
 
 -- // Ana Arayüz (GUI)
 local ScreenGui = Instance.new("ScreenGui")
@@ -32,7 +142,7 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 45)
 MainFrame.BackgroundTransparency = 0.25
 MainFrame.BorderSizePixel = 0
-MainFrame.Size = UDim2.new(0, 500, 0, 280)
+MainFrame.Size = UDim2.new(0, 500, 0, 320)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 
@@ -44,23 +154,30 @@ UIStroke.Color = Color3.fromRGB(200, 100, 255)
 UIStroke.Thickness = 1.3
 UIStroke.Transparency = 0.35
 
+-- // Üst Taşıma Çubuğu
+local TopBar = Instance.new("Frame", MainFrame)
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundTransparency = 1
+TopBar.ZIndex = 5
+
 -- // Başlık
-local Title = Instance.new("TextLabel", MainFrame)
+local Title = Instance.new("TextLabel", TopBar)
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0.04, 0, 0.03, 0)
+Title.Position = UDim2.new(0.04, 0, 0.15, 0)
 Title.Size = UDim2.new(0, 260, 0, 22)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "Murder Mystery 2 | Farm"
+Title.Text = L("title")
 Title.TextColor3 = Color3.fromRGB(140, 100, 255)
 Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
-local SubTitle = Instance.new("TextLabel", MainFrame)
+local SubTitle = Instance.new("TextLabel", TopBar)
 SubTitle.BackgroundTransparency = 1
-SubTitle.Position = UDim2.new(0.04, 0, 0.11, 0)
+SubTitle.Position = UDim2.new(0.04, 0, 0.65, 0)
 SubTitle.Size = UDim2.new(0, 200, 0, 18)
 SubTitle.Font = Enum.Font.Gotham
-SubTitle.Text = "By: VOİD + Webhook Hub"
+SubTitle.Text = L("subtitle")
 SubTitle.TextColor3 = Color3.fromRGB(255, 160, 255)
 SubTitle.TextSize = 12
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -69,7 +186,7 @@ SubTitle.TextTransparency = 0.1
 -- // Sekme Konteyneri
 local TabsContainer = Instance.new("Frame", MainFrame)
 TabsContainer.Size = UDim2.new(0, 150, 0, 45)
-TabsContainer.Position = UDim2.new(0.025, 0, 0.22, 0)
+TabsContainer.Position = UDim2.new(0.025, 0, 0.16, 0)
 TabsContainer.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 TabsContainer.BackgroundTransparency = 0.25
 TabsContainer.BorderSizePixel = 0
@@ -84,14 +201,15 @@ TabsStroke.Transparency = 0.4
 local MainTab = Instance.new("TextButton", TabsContainer)
 MainTab.Size = UDim2.new(0, 65, 0, 30)
 MainTab.Position = UDim2.new(0, 5, 0, 7)
-MainTab.BackgroundColor3 = Color3.fromRGB(60, 0, 90)
-MainTab.BackgroundTransparency = 0.2
+MainTab.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MainTab.BackgroundTransparency = 0
 MainTab.BorderSizePixel = 0
-MainTab.Text = "Ana Sayfa"
-MainTab.TextColor3 = Color3.fromRGB(255, 180, 255)
+MainTab.Text = L("mainTab")
+MainTab.TextColor3 = Color3.fromRGB(30, 0, 45)
 MainTab.TextSize = 13
 MainTab.Font = Enum.Font.GothamBold
 Instance.new("UICorner", MainTab).CornerRadius = UDim.new(0, 6)
+applyButtonAnimation(MainTab)
 
 local MiscTab = Instance.new("TextButton", TabsContainer)
 MiscTab.Size = UDim2.new(0, 65, 0, 30)
@@ -99,19 +217,21 @@ MiscTab.Position = UDim2.new(0, 80, 0, 7)
 MiscTab.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 MiscTab.BackgroundTransparency = 0.2
 MiscTab.BorderSizePixel = 0
-MiscTab.Text = "Diğer"
+MiscTab.Text = L("miscTab")
 MiscTab.TextColor3 = Color3.fromRGB(180, 120, 255)
 MiscTab.TextSize = 13
 MiscTab.Font = Enum.Font.GothamBold
 Instance.new("UICorner", MiscTab).CornerRadius = UDim.new(0, 6)
+applyButtonAnimation(MiscTab)
 
 -- // İçerik Konteyneri
 local ContentContainer = Instance.new("Frame", MainFrame)
-ContentContainer.Size = UDim2.new(0, 280, 0, 180)
-ContentContainer.Position = UDim2.new(0.43, 0, 0.22, 0)
+ContentContainer.Size = UDim2.new(0, 280, 0, 220)
+ContentContainer.Position = UDim2.new(0.43, 0, 0.16, 0)
 ContentContainer.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 ContentContainer.BackgroundTransparency = 0.35
 ContentContainer.BorderSizePixel = 0
+ContentContainer.ClipsDescendants = true
 Instance.new("UICorner", ContentContainer).CornerRadius = UDim.new(0, 8)
 
 local ContentStroke = Instance.new("UIStroke", ContentContainer)
@@ -119,7 +239,6 @@ ContentStroke.Color = Color3.fromRGB(190, 120, 255)
 ContentStroke.Thickness = 1.2
 ContentStroke.Transparency = 0.4
 
--- // İçerik
 local MainContent = Instance.new("Frame", ContentContainer)
 MainContent.Size = UDim2.new(1, -20, 1, -20)
 MainContent.Position = UDim2.new(0, 10, 0, 10)
@@ -131,27 +250,37 @@ MiscContent.Position = UDim2.new(0, 10, 0, 10)
 MiscContent.BackgroundTransparency = 1
 MiscContent.Visible = false
 
--- // Sekme Değiştirme
-MainTab.MouseButton1Click:Connect(function()
-	MainContent.Visible = true
-	MiscContent.Visible = false
-	MainTab.BackgroundColor3 = Color3.fromRGB(60, 0, 90)
-	MiscTab.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
-	MainTab.TextColor3 = Color3.fromRGB(255, 180, 255)
-	MiscTab.TextColor3 = Color3.fromRGB(180, 120, 255)
-end)
+local function switchTab(isMain)
+	if isMain then
+		MiscContent.Visible = false
+		MainContent.Visible = true
+		MainContent.Position = UDim2.new(0, 25, 0, 10)
+		TweenService:Create(MainContent, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0, 10, 0, 10)
+		}):Play()
+		MainTab.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		MainTab.TextColor3 = Color3.fromRGB(30, 0, 45)
+		MiscTab.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
+		MiscTab.TextColor3 = Color3.fromRGB(180, 120, 255)
+	else
+		MainContent.Visible = false
+		MiscContent.Visible = true
+		MiscContent.Position = UDim2.new(0, 25, 0, 10)
+		TweenService:Create(MiscContent, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0, 10, 0, 10)
+		}):Play()
+		MiscTab.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		MiscTab.TextColor3 = Color3.fromRGB(30, 0, 45)
+		MainTab.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
+		MainTab.TextColor3 = Color3.fromRGB(180, 120, 255)
+	end
+end
 
-MiscTab.MouseButton1Click:Connect(function()
-	MainContent.Visible = false
-	MiscContent.Visible = true
-	MainTab.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
-	MainTab.BackgroundColor3 = Color3.fromRGB(60, 0, 90)
-	MainTab.TextColor3 = Color3.fromRGB(180, 120, 255)
-	MainTab.TextColor3 = Color3.fromRGB(255, 180, 255)
-end)
+MainTab.MouseButton1Click:Connect(function() switchTab(true) end)
+MiscTab.MouseButton1Click:Connect(function() switchTab(false) end)
 
 -------------------------------------------------------------------
--- 🍬 OTOMATİK COİN FARM -------------------------------------------------------------------
+-- OTOMATİK COİN FARM & AYARLAR -------------------------------------------------------------------
 local autoFarmEnabled = false
 local farming = false
 local bag_full = false
@@ -161,37 +290,48 @@ local autoResetEnabled = false
 local resetting = false
 local undergroundMode = false
 
--- // Otomatik Farm Butonu
-local AutoFarmToggle = Instance.new("TextButton")
-AutoFarmToggle.Parent = MainContent
-AutoFarmToggle.Size = UDim2.new(0, 230, 0, 35)
-AutoFarmToggle.Position = UDim2.new(0, 20, 0, 30)
+local AutoFarmToggle = Instance.new("TextButton", MainContent)
+AutoFarmToggle.Size = UDim2.new(0, 260, 0, 32)
+AutoFarmToggle.Position = UDim2.new(0, 0, 0, 5)
 AutoFarmToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 AutoFarmToggle.BorderSizePixel = 0
 AutoFarmToggle.Text = ""
 AutoFarmToggle.AutoButtonColor = false
-
-local AutoFarmCorner = Instance.new("UICorner", AutoFarmToggle)
-AutoFarmCorner.CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", AutoFarmToggle).CornerRadius = UDim.new(1, 0)
+applyButtonAnimation(AutoFarmToggle)
 
 local AutoFarmStroke = Instance.new("UIStroke", AutoFarmToggle)
 AutoFarmStroke.Color = Color3.fromRGB(200, 100, 255)
 AutoFarmStroke.Thickness = 1.2
 AutoFarmStroke.Transparency = 0.4
 
+local IconStopped = Instance.new("ImageLabel", AutoFarmToggle)
+IconStopped.BackgroundTransparency = 1
+IconStopped.Position = UDim2.new(0, 10, 0.5, -10)
+IconStopped.Size = UDim2.new(0, 20, 0, 20)
+IconStopped.Image = "rbxassetid://8517323790"
+IconStopped.Visible = true
+
+local IconStarted = Instance.new("ImageLabel", AutoFarmToggle)
+IconStarted.BackgroundTransparency = 1
+IconStarted.Position = UDim2.new(0, 10, 0.5, -10)
+IconStarted.Size = UDim2.new(0, 20, 0, 20)
+IconStarted.Image = "rbxassetid://14219414360"
+IconStarted.Visible = false
+
 local AutoFarmLabel = Instance.new("TextLabel", AutoFarmToggle)
 AutoFarmLabel.BackgroundTransparency = 1
-AutoFarmLabel.Position = UDim2.new(0.1, 0, 0, 0)
-AutoFarmLabel.Size = UDim2.new(0.8, 0, 1, 0)
+AutoFarmLabel.Position = UDim2.new(0, 38, 0, 0)
+AutoFarmLabel.Size = UDim2.new(0.65, 0, 1, 0)
 AutoFarmLabel.Font = Enum.Font.GothamBold
-AutoFarmLabel.Text = "🍬 Otomatik Coin Farm"
+AutoFarmLabel.Text = L("autoFarm")
 AutoFarmLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoFarmLabel.TextSize = 14
+AutoFarmLabel.TextSize = 13
 AutoFarmLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local ToggleCircle = Instance.new("Frame", AutoFarmToggle)
 ToggleCircle.Size = UDim2.new(0, 18, 0, 18)
-ToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
+ToggleCircle.Position = UDim2.new(0.88, 0, 0.23, 0)
 ToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
 ToggleCircle.BorderSizePixel = 0
 Instance.new("UICorner", ToggleCircle).CornerRadius = UDim.new(1, 0)
@@ -199,119 +339,28 @@ Instance.new("UICorner", ToggleCircle).CornerRadius = UDim.new(1, 0)
 AutoFarmToggle.MouseButton1Click:Connect(function()
 	autoFarmEnabled = not autoFarmEnabled
 	if autoFarmEnabled then
-		ToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
+		ToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
+		IconStopped.Visible = false
+		IconStarted.Visible = true
 	else
 		ToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+		IconStopped.Visible = true
+		IconStarted.Visible = false
 	end
 end)
 
--- // Otomatik Sıfırlama Butonu
-local AutoResetToggle = Instance.new("TextButton")
-AutoResetToggle.Parent = MainContent
-AutoResetToggle.Size = UDim2.new(0, 230, 0, 35)
-AutoResetToggle.Position = UDim2.new(0, 20, 0, 120)
-AutoResetToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
-AutoResetToggle.BorderSizePixel = 0
-AutoResetToggle.Text = ""
-AutoResetToggle.AutoButtonColor = false
-
-local AutoResetCorner = Instance.new("UICorner", AutoResetToggle)
-AutoResetCorner.CornerRadius = UDim.new(1, 0)
-
-local AutoResetStroke = Instance.new("UIStroke", AutoResetToggle)
-AutoResetStroke.Color = Color3.fromRGB(200, 100, 255)
-AutoResetStroke.Thickness = 1.2
-AutoResetStroke.Transparency = 0.4
-
-local AutoResetLabel = Instance.new("TextLabel", AutoResetToggle)
-AutoResetLabel.BackgroundTransparency = 1
-AutoResetLabel.Position = UDim2.new(0.1, 0, 0, 0)
-AutoResetLabel.Size = UDim2.new(0.8, 0, 1, 0)
-AutoResetLabel.Font = Enum.Font.GothamBold
-AutoResetLabel.Text = "🔄 Otomatik Sıfırlama"
-AutoResetLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoResetLabel.TextSize = 14
-AutoResetLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local ResetToggleCircle = Instance.new("Frame", AutoResetToggle)
-ResetToggleCircle.Size = UDim2.new(0, 18, 0, 18)
-ResetToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
-ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
-ResetToggleCircle.BorderSizePixel = 0
-Instance.new("UICorner", ResetToggleCircle).CornerRadius = UDim.new(1, 0)
-
-AutoResetToggle.MouseButton1Click:Connect(function()
-	autoResetEnabled = not autoResetEnabled
-	if autoResetEnabled then
-		ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
-	else
-		ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
-	end
-end)
-
--- // Yeraltı Modu Butonu
-local UndergroundToggle = Instance.new("TextButton")
-UndergroundToggle.Parent = MainContent
-UndergroundToggle.Size = UDim2.new(0, 230, 0, 35)
-UndergroundToggle.Position = UDim2.new(0, 20, 0, 160)
-UndergroundToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
-UndergroundToggle.BorderSizePixel = 0
-UndergroundToggle.Text = ""
-UndergroundToggle.AutoButtonColor = false
-
-local UndergroundCorner = Instance.new("UICorner", UndergroundToggle)
-UndergroundCorner.CornerRadius = UDim.new(1, 0)
-
-local UndergroundStroke = Instance.new("UIStroke", UndergroundToggle)
-UndergroundStroke.Color = Color3.fromRGB(200, 100, 255)
-UndergroundStroke.Thickness = 1.2
-UndergroundStroke.Transparency = 0.4
-
-local UndergroundLabel = Instance.new("TextLabel", UndergroundToggle)
-UndergroundLabel.BackgroundTransparency = 1
-UndergroundLabel.Position = UDim2.new(0.1, 0, 0, 0)
-UndergroundLabel.Size = UDim2.new(0.8, 0, 1, 0)
-UndergroundLabel.Font = Enum.Font.GothamBold
-UndergroundLabel.Text = "⬇️ Yeraltı Modu"
-UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-UndergroundLabel.TextSize = 14
-UndergroundLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local UndergroundToggleCircle = Instance.new("Frame", UndergroundToggle)
-UndergroundToggleCircle.Size = UDim2.new(0, 18, 0, 18)
-UndergroundToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
-UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
-UndergroundToggleCircle.BorderSizePixel = 0
-Instance.new("UICorner", UndergroundToggleCircle).CornerRadius = UDim.new(1, 0)
-
-UndergroundToggle.MouseButton1Click:Connect(function()
-	undergroundMode = not undergroundMode
-	if undergroundMode then
-		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
-		UndergroundLabel.Text = "⬇️ Yeraltı AÇIK"
-		UndergroundLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
-	else
-		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
-		UndergroundLabel.Text = "⬇️ Yeraltı Modu"
-		UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	end
-end)
-
--- // Hız Girişi
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Parent = MainContent
-SpeedLabel.Position = UDim2.new(0, 25, 0, 70)
-SpeedLabel.Size = UDim2.new(0, 80, 0, 25)
+local SpeedLabel = Instance.new("TextLabel", MainContent)
+SpeedLabel.Position = UDim2.new(0, 5, 0, 45)
+SpeedLabel.Size = UDim2.new(0, 40, 0, 25)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
-SpeedLabel.Text = "Hız:"
+SpeedLabel.Text = L("speed")
 SpeedLabel.TextColor3 = Color3.fromRGB(255, 200, 255)
 SpeedLabel.TextSize = 13
 SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local SpeedBox = Instance.new("TextBox")
-SpeedBox.Parent = MainContent
-SpeedBox.Position = UDim2.new(0, 95, 0, 70)
+local SpeedBox = Instance.new("TextBox", MainContent)
+SpeedBox.Position = UDim2.new(0, 45, 0, 45)
 SpeedBox.Size = UDim2.new(0, 60, 0, 25)
 SpeedBox.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 SpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -319,6 +368,7 @@ SpeedBox.PlaceholderText = tostring(farmSpeed)
 SpeedBox.Font = Enum.Font.GothamBold
 SpeedBox.TextSize = 13
 SpeedBox.Text = tostring(farmSpeed)
+SpeedBox.ClipsDescendants = true
 Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 6)
 
 local SpeedStroke = Instance.new("UIStroke", SpeedBox)
@@ -326,17 +376,27 @@ SpeedStroke.Color = Color3.fromRGB(190, 120, 255)
 SpeedStroke.Thickness = 1.1
 SpeedStroke.Transparency = 0.4
 
-local WarningText = Instance.new("TextLabel")
-WarningText.Parent = MainContent
-WarningText.Position = UDim2.new(0, 25, 0, 97)
-WarningText.Size = UDim2.new(0, 220, 0, 15)
+local WarningText = Instance.new("TextLabel", MainContent)
+WarningText.Position = UDim2.new(0, 115, 0, 45)
+WarningText.Size = UDim2.new(0, 145, 0, 25)
 WarningText.BackgroundTransparency = 1
 WarningText.Font = Enum.Font.Gotham
-WarningText.Text = "⚠️ 25 Üzeri = Atılma Riski"
-WarningText.TextColor3 = Color3.fromRGB(255, 130, 130)
+WarningText.Text = L("warning")
+WarningText.TextColor3 = Color3.fromRGB(120, 255, 120)
 WarningText.TextSize = 11
 WarningText.TextXAlignment = Enum.TextXAlignment.Left
 WarningText.TextTransparency = 0.1
+
+local function updateSpeedColor(val)
+	if val >= 25 then
+		WarningText.TextColor3 = Color3.fromRGB(255, 50, 50)
+	elseif val == 24 then
+		WarningText.TextColor3 = Color3.fromRGB(255, 220, 50)
+	else
+		WarningText.TextColor3 = Color3.fromRGB(120, 255, 120)
+	end
+end
+updateSpeedColor(farmSpeed)
 
 SpeedBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
@@ -346,21 +406,127 @@ SpeedBox.FocusLost:Connect(function(enterPressed)
 			if value > 50 then value = 50 end
 			farmSpeed = value
 			SpeedBox.Text = tostring(farmSpeed)
-			if farmSpeed > 25 then
-				WarningText.TextColor3 = Color3.fromRGB(255, 50, 50)
-			else
-				WarningText.TextColor3 = Color3.fromRGB(255, 130, 130)
-			end
+			updateSpeedColor(farmSpeed)
 		else
 			SpeedBox.Text = tostring(farmSpeed)
 		end
 	end
 end)
 
+local AutoResetToggle = Instance.new("TextButton", MainContent)
+AutoResetToggle.Size = UDim2.new(0, 260, 0, 32)
+AutoResetToggle.Position = UDim2.new(0, 0, 0, 85)
+AutoResetToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+AutoResetToggle.BorderSizePixel = 0
+AutoResetToggle.Text = ""
+AutoResetToggle.AutoButtonColor = false
+Instance.new("UICorner", AutoResetToggle).CornerRadius = UDim.new(1, 0)
+applyButtonAnimation(AutoResetToggle)
+
+local AutoResetStroke = Instance.new("UIStroke", AutoResetToggle)
+AutoResetStroke.Color = Color3.fromRGB(200, 100, 255)
+AutoResetStroke.Thickness = 1.2
+AutoResetStroke.Transparency = 0.4
+
+local AutoResetIcon = Instance.new("ImageLabel", AutoResetToggle)
+AutoResetIcon.BackgroundTransparency = 1
+AutoResetIcon.Position = UDim2.new(0, 10, 0.5, -10)
+AutoResetIcon.Size = UDim2.new(0, 20, 0, 20)
+AutoResetIcon.Image = "rbxassetid://4512344746"
+
+local AutoResetLabel = Instance.new("TextLabel", AutoResetToggle)
+AutoResetLabel.BackgroundTransparency = 1
+AutoResetLabel.Position = UDim2.new(0, 38, 0, 0)
+AutoResetLabel.Size = UDim2.new(0.65, 0, 1, 0)
+AutoResetLabel.Font = Enum.Font.GothamBold
+AutoResetLabel.Text = L("autoReset")
+AutoResetLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoResetLabel.TextSize = 13
+AutoResetLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local ResetToggleCircle = Instance.new("Frame", AutoResetToggle)
+ResetToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+ResetToggleCircle.Position = UDim2.new(0.88, 0, 0.23, 0)
+ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+ResetToggleCircle.BorderSizePixel = 0
+Instance.new("UICorner", ResetToggleCircle).CornerRadius = UDim.new(1, 0)
+
+AutoResetToggle.MouseButton1Click:Connect(function()
+	autoResetEnabled = not autoResetEnabled
+	if autoResetEnabled then
+		ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
+	else
+		ResetToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+	end
+end)
+
+local UndergroundToggle = Instance.new("TextButton", MainContent)
+UndergroundToggle.Size = UDim2.new(0, 260, 0, 32)
+UndergroundToggle.Position = UDim2.new(0, 0, 0, 125)
+UndergroundToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+UndergroundToggle.BorderSizePixel = 0
+UndergroundToggle.Text = ""
+UndergroundToggle.AutoButtonColor = false
+Instance.new("UICorner", UndergroundToggle).CornerRadius = UDim.new(1, 0)
+applyButtonAnimation(UndergroundToggle)
+
+local UndergroundStroke = Instance.new("UIStroke", UndergroundToggle)
+UndergroundStroke.Color = Color3.fromRGB(200, 100, 255)
+UndergroundStroke.Thickness = 1.2
+UndergroundStroke.Transparency = 0.4
+
+local UndergroundIconStopped = Instance.new("ImageLabel", UndergroundToggle)
+UndergroundIconStopped.BackgroundTransparency = 1
+UndergroundIconStopped.Position = UDim2.new(0, 10, 0.5, -10)
+UndergroundIconStopped.Size = UDim2.new(0, 20, 0, 20)
+UndergroundIconStopped.Image = "rbxassetid://75883179428189"
+UndergroundIconStopped.Visible = true
+
+local UndergroundIconStarted = Instance.new("ImageLabel", UndergroundToggle)
+UndergroundIconStarted.BackgroundTransparency = 1
+UndergroundIconStarted.Position = UDim2.new(0, 10, 0.5, -10)
+UndergroundIconStarted.Size = UDim2.new(0, 20, 0, 20)
+UndergroundIconStarted.Image = "rbxassetid://135341415849911"
+UndergroundIconStarted.Visible = false
+
+local UndergroundLabel = Instance.new("TextLabel", UndergroundToggle)
+UndergroundLabel.BackgroundTransparency = 1
+UndergroundLabel.Position = UDim2.new(0, 38, 0, 0)
+UndergroundLabel.Size = UDim2.new(0.65, 0, 1, 0)
+UndergroundLabel.Font = Enum.Font.GothamBold
+UndergroundLabel.Text = L("underground")
+UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+UndergroundLabel.TextSize = 13
+UndergroundLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local UndergroundToggleCircle = Instance.new("Frame", UndergroundToggle)
+UndergroundToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+UndergroundToggleCircle.Position = UDim2.new(0.88, 0, 0.23, 0)
+UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+UndergroundToggleCircle.BorderSizePixel = 0
+Instance.new("UICorner", UndergroundToggleCircle).CornerRadius = UDim.new(1, 0)
+
+UndergroundToggle.MouseButton1Click:Connect(function()
+	undergroundMode = not undergroundMode
+	if undergroundMode then
+		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
+		UndergroundLabel.Text = L("undergroundOpen")
+		UndergroundLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
+		UndergroundIconStopped.Visible = false
+		UndergroundIconStarted.Visible = true
+	else
+		UndergroundToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
+		UndergroundLabel.Text = L("underground")
+		UndergroundLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		UndergroundIconStopped.Visible = true
+		UndergroundIconStarted.Visible = false
+	end
+end)
+
 -------------------------------------------------------------------
--- 🔁 Otomatik Farm Mantığı & Webhook Fonksiyonları -------------------------------------------------------------------
+-- 🔁 Döngüler ve Webhook Mantığı (Oturum Koruma Eklenmiş) -------------------------------------------------------------------
 local function getCharacter()
-	return Player.Character or Player.CharacterAdded:Wait()
+	return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
 
 local function getHRP()
@@ -373,6 +539,7 @@ local isDead = false
 local roundActive = false
 
 local function isCoinValid(coin)
+	if getgenv().MM2FarmSession ~= mySession then return false end
 	if not coin or not coin.Parent then return false end
 	if not coin:FindFirstChild("TouchInterest") then return false end
 	if collectedCoins[coin] then
@@ -389,6 +556,7 @@ local function get_nearest_coin()
 	local hrp = getHRP()
 	local closest, dist = nil, math.huge
 	for _, m in pairs(workspace:GetChildren()) do
+		if getgenv().MM2FarmSession ~= mySession then return nil, math.huge end
 		if m:FindFirstChild("CoinContainer") then
 			for _, coin in pairs(m.CoinContainer:GetChildren()) do
 				if coin:IsA("BasePart") and isCoinValid(coin) then
@@ -403,7 +571,8 @@ local function get_nearest_coin()
 	return closest, dist
 end
 
--- // Webhook Gönderme Fonksiyonu
+local WebhookTimerLabelRef
+
 local function sendEnhancedWebhook()
 	if webhookURL == "" or not webhookURL:find("discord.com") then return end
 	local diff = os.difftime(os.time(), startTime)
@@ -411,21 +580,24 @@ local function sendEnhancedWebhook()
 	local m = math.floor((diff % 3600) / 60)
 	local s = diff % 60
 	local perHour = (diff > 0) and math.floor((totalCoins / (diff / 3600))) or 0
-	local headshot = "https://www.roblox.com/headshot-thumbnail/image?userId="..Player.UserId.."&width=420&height=420&format=png"
+	
+	local characterImg = "https://www.roblox.com/avatar-thumbnail/image?userId="..targetUserId.."&width=420&height=420&format=png"
 	
 	local data = {
+		["username"] = "MM2 Farm Hub",
+		["avatar_url"] = characterImg,
 		["embeds"] = {{
 			["title"] = "🚀 MM2 Farm Raporu (VOİD Hub)",
-			["description"] = "**Durum:** Farm Devam Ediyor...",
+			["description"] = "**Durum / Status:** Farm Devam Ediyor / Running...",
 			["color"] = 14513407,
-			["thumbnail"] = {["url"] = headshot},
+			["thumbnail"] = {["url"] = characterImg},
 			["fields"] = {
-				{["name"] = "👤 Oyuncu", ["value"] = "```" .. Player.Name .. "```", ["inline"] = true},
-				{["name"] = "⏳ Toplam Süre", ["value"] = "```" .. string.format("%02d:%02d:%02d", h, m, s) .. "```", ["inline"] = true},
-				{["name"] = "🪙 Toplam Coin", ["value"] = "```" .. totalCoins .. "```", ["inline"] = true},
-				{["name"] = "📈 Saatlik Hız", ["value"] = "```" .. perHour .. " Coin/Saat```", ["inline"] = true}
+				{["name"] = "👤 Kullanıcı / User", ["value"] = "```" .. targetUserName .. "```", ["inline"] = true},
+				{["name"] = "⏳ Süre / Time", ["value"] = "```" .. string.format("%02d:%02d:%02d", h, m, s) .. "```", ["inline"] = true},
+				{["name"] = "🪙 Coin", ["value"] = "```" .. totalCoins .. "```", ["inline"] = true},
+				{["name"] = "📈 Hız / Speed", ["value"] = "```" .. perHour .. " / Saat-Hour```", ["inline"] = true}
 			},
-			["footer"] = { ["text"] = "MM2 Farm Hub - Türkçe Sistem", ["icon_url"] = headshot }
+			["footer"] = { ["text"] = "MM2 Farm Hub - Auto Language Support", ["icon_url"] = characterImg }
 		}}
 	}
 	
@@ -443,11 +615,11 @@ local function sendEnhancedWebhook()
 	lastWebhook = os.time()
 end
 
--- // Tur Başlangıç/Bitiş Takibi
 local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
 local RoundEnd = ReplicatedStorage.Remotes.Gameplay.RoundEndFade
 
 RoundStart.OnClientEvent:Connect(function()
+	if getgenv().MM2FarmSession ~= mySession then return end
 	roundActive = true
 	isDead = false
 	farming = true
@@ -456,6 +628,7 @@ RoundStart.OnClientEvent:Connect(function()
 end)
 
 RoundEnd.OnClientEvent:Connect(function()
+	if getgenv().MM2FarmSession ~= mySession then return end
 	roundActive = false
 	farming = false
 	if start_position then
@@ -463,13 +636,13 @@ RoundEnd.OnClientEvent:Connect(function()
 	end
 end)
 
--- // Ölüm Kontrolü
 local function checkDeath()
-	local char = Player.Character
+	local char = LocalPlayer.Character
 	if char then
 		local humanoid = char:FindFirstChildOfClass("Humanoid")
 		if humanoid then
 			humanoid.Died:Connect(function()
+				if getgenv().MM2FarmSession ~= mySession then return end
 				isDead = true
 				farming = false
 				bag_full = false
@@ -478,7 +651,8 @@ local function checkDeath()
 	end
 end
 
-Player.CharacterAdded:Connect(function()
+LocalPlayer.CharacterAdded:Connect(function()
+	if getgenv().MM2FarmSession ~= mySession then return end
 	isDead = false
 	if roundActive then
 		farming = false
@@ -486,17 +660,16 @@ Player.CharacterAdded:Connect(function()
 	task.wait(0.5)
 	checkDeath()
 end)
-
 checkDeath()
 
--- // Coin Toplama & Sayma & Otomatik Sıfırlama
 local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
-local CoinLabelRef, TimeLabelRef
+local CoinLabelRef
 
 CoinCollected.OnClientEvent:Connect(function(_, current, max)
+	if getgenv().MM2FarmSession ~= mySession then return end
 	totalCoins = totalCoins + 1
 	if CoinLabelRef then
-		CoinLabelRef.Text = "Coin: " .. tostring(totalCoins)
+		CoinLabelRef.Text = L("coin") .. tostring(totalCoins)
 	end
 	
 	if current >= max then
@@ -514,22 +687,25 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
 			tween.Completed:Wait()
 		end
 		task.wait(0.5)
-		Player.Character.Humanoid.Health = 0
-		Player.CharacterAdded:Wait()
+		LocalPlayer.Character.Humanoid.Health = 0
+		LocalPlayer.CharacterAdded:Wait()
 		task.wait(1.5)
 		resetting = false
 		bag_full = false
 	end
 end)
 
--- // ANA FARM DÖNGÜSÜ
+-- Farm Döngüsü (Eski oturum algılandığında anında durur)
 task.spawn(function()
 	while true do
+		task.wait(0.1)
+		if getgenv().MM2FarmSession ~= mySession then break end
 		if autoFarmEnabled and farming and not bag_full and not isDead and roundActive then
 			local coin, dist = get_nearest_coin()
 			if coin then
 				local hrp = getHRP()
 				local function tweenTo(targetPos)
+					if getgenv().MM2FarmSession ~= mySession then return end
 					local distance = (hrp.Position - targetPos).Magnitude
 					local duration = distance / farmSpeed
 					if duration < 0.05 then duration = 0.05 end
@@ -544,17 +720,12 @@ task.spawn(function()
 					local coinPos = coin.Position
 					local undergroundY = coinPos.Y - 9
 
-					local dropDownPos = Vector3.new(currentPos.X, undergroundY, currentPos.Z)
-					tweenTo(dropDownPos)
-
-					local coinUndergroundPos = Vector3.new(coinPos.X, undergroundY, coinPos.Z)
-					tweenTo(coinUndergroundPos)
-
+					tweenTo(Vector3.new(currentPos.X, undergroundY, currentPos.Z))
+					tweenTo(Vector3.new(coinPos.X, undergroundY, coinPos.Z))
 					tweenTo(coinPos)
 					collectedCoins[coin] = tick()
 					task.wait(0.1)
-
-					tweenTo(coinUndergroundPos)
+					tweenTo(Vector3.new(coinPos.X, undergroundY, coinPos.Z))
 				else
 					tweenTo(coin.Position)
 					collectedCoins[coin] = tick()
@@ -563,45 +734,48 @@ task.spawn(function()
 			else
 				task.wait(0.5)
 			end
-		else
-			task.wait(0.5)
 		end
 	end
 end)
 
 -------------------------------------------------------------------
--- ⚙️ DİĞER (MISC) FONKSİYONLAR & WEBHOOK AYARLARI -------------------------------------------------------------------
+-- ⚙️ DİĞER (MISC) FONKSİYONLAR -------------------------------------------------------------------
 local antiAfkEnabled = false
 
--- // Anti-AFK Butonu
-local AntiAFKToggle = Instance.new("TextButton")
-AntiAFKToggle.Parent = MiscContent
-AntiAFKToggle.Size = UDim2.new(0, 230, 0, 30)
-AntiAFKToggle.Position = UDim2.new(0, 20, 0, 10)
+local AntiAFKToggle = Instance.new("TextButton", MiscContent)
+AntiAFKToggle.Size = UDim2.new(0, 260, 0, 32)
+AntiAFKToggle.Position = UDim2.new(0, 0, 0, 5)
 AntiAFKToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 AntiAFKToggle.BorderSizePixel = 0
 AntiAFKToggle.Text = ""
 AntiAFKToggle.AutoButtonColor = false
-
 Instance.new("UICorner", AntiAFKToggle).CornerRadius = UDim.new(1, 0)
+applyButtonAnimation(AntiAFKToggle)
+
 local AntiAFKStroke = Instance.new("UIStroke", AntiAFKToggle)
 AntiAFKStroke.Color = Color3.fromRGB(200, 100, 255)
 AntiAFKStroke.Thickness = 1.2
 AntiAFKStroke.Transparency = 0.4
 
+local AntiAFKIcon = Instance.new("ImageLabel", AntiAFKToggle)
+AntiAFKIcon.BackgroundTransparency = 1
+AntiAFKIcon.Position = UDim2.new(0, 10, 0.5, -9)
+AntiAFKIcon.Size = UDim2.new(0, 18, 0, 18)
+AntiAFKIcon.Image = "rbxassetid://11656483170"
+
 local AntiAFKLabel = Instance.new("TextLabel", AntiAFKToggle)
 AntiAFKLabel.BackgroundTransparency = 1
-AntiAFKLabel.Position = UDim2.new(0.1, 0, 0, 0)
-AntiAFKLabel.Size = UDim2.new(0.8, 0, 1, 0)
+AntiAFKLabel.Position = UDim2.new(0, 38, 0, 0)
+AntiAFKLabel.Size = UDim2.new(0.65, 0, 1, 0)
 AntiAFKLabel.Font = Enum.Font.GothamBold
-AntiAFKLabel.Text = "⏰ Anti-AFK"
+AntiAFKLabel.Text = L("antiAfk")
 AntiAFKLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 AntiAFKLabel.TextSize = 13
 AntiAFKLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local AntiAFKToggleCircle = Instance.new("Frame", AntiAFKToggle)
 AntiAFKToggleCircle.Size = UDim2.new(0, 16, 0, 16)
-AntiAFKToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
+AntiAFKToggleCircle.Position = UDim2.new(0.88, 0, 0.23, 0)
 AntiAFKToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
 AntiAFKToggleCircle.BorderSizePixel = 0
 Instance.new("UICorner", AntiAFKToggleCircle).CornerRadius = UDim.new(1, 0)
@@ -609,48 +783,54 @@ Instance.new("UICorner", AntiAFKToggleCircle).CornerRadius = UDim.new(1, 0)
 AntiAFKToggle.MouseButton1Click:Connect(function()
 	if not antiAfkEnabled then
 		antiAfkEnabled = true
-		AntiAFKToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
+		AntiAFKToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
 		pcall(function()
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/BaconScrr/Universal/refs/heads/main/anti_afk.txt"))()
 		end)
-		AntiAFKLabel.Text = "⏰ Anti-AFK ✓"
+		AntiAFKLabel.Text = L("antiAfkActive")
 		AntiAFKLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
 	end
 end)
 
 -------------------------------------------------------------------
--- 🚫 NOCLIP / ÇARPIŞMA ÖNLEME -------------------------------------------------------------------
+-- 🚫 NOCLIP -------------------------------------------------------------------
 local noclipEnabled = false
 local noclipConnection = nil
 
-local NoclipToggle = Instance.new("TextButton")
-NoclipToggle.Parent = MiscContent
-NoclipToggle.Size = UDim2.new(0, 230, 0, 30)
-NoclipToggle.Position = UDim2.new(0, 20, 0, 48)
+local NoclipToggle = Instance.new("TextButton", MiscContent)
+NoclipToggle.Size = UDim2.new(0, 260, 0, 32)
+NoclipToggle.Position = UDim2.new(0, 0, 0, 42)
 NoclipToggle.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 NoclipToggle.BorderSizePixel = 0
 NoclipToggle.Text = ""
 NoclipToggle.AutoButtonColor = false
-
 Instance.new("UICorner", NoclipToggle).CornerRadius = UDim.new(1, 0)
+applyButtonAnimation(NoclipToggle)
+
 local NoclipStroke = Instance.new("UIStroke", NoclipToggle)
 NoclipStroke.Color = Color3.fromRGB(200, 100, 255)
 NoclipStroke.Thickness = 1.2
 NoclipStroke.Transparency = 0.4
 
+local NoclipIcon = Instance.new("ImageLabel", NoclipToggle)
+NoclipIcon.BackgroundTransparency = 1
+NoclipIcon.Position = UDim2.new(0, 10, 0.5, -9)
+NoclipIcon.Size = UDim2.new(0, 18, 0, 18)
+NoclipIcon.Image = "rbxassetid://6723742952"
+
 local NoclipLabel = Instance.new("TextLabel", NoclipToggle)
 NoclipLabel.BackgroundTransparency = 1
-NoclipLabel.Position = UDim2.new(0.1, 0, 0, 0)
-NoclipLabel.Size = UDim2.new(0.8, 0, 1, 0)
+NoclipLabel.Position = UDim2.new(0, 38, 0, 0)
+NoclipLabel.Size = UDim2.new(0.65, 0, 1, 0)
 NoclipLabel.Font = Enum.Font.GothamBold
-NoclipLabel.Text = "🚫 Noclip"
+NoclipLabel.Text = L("noclip")
 NoclipLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 NoclipLabel.TextSize = 13
 NoclipLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local NoclipToggleCircle = Instance.new("Frame", NoclipToggle)
 NoclipToggleCircle.Size = UDim2.new(0, 16, 0, 16)
-NoclipToggleCircle.Position = UDim2.new(0.87, 0, 0.23, 0)
+NoclipToggleCircle.Position = UDim2.new(0.88, 0, 0.23, 0)
 NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
 NoclipToggleCircle.BorderSizePixel = 0
 Instance.new("UICorner", NoclipToggleCircle).CornerRadius = UDim.new(1, 0)
@@ -658,11 +838,12 @@ Instance.new("UICorner", NoclipToggleCircle).CornerRadius = UDim.new(1, 0)
 local function setNoclip(enabled)
 	noclipEnabled = enabled
 	if noclipEnabled then
-		NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 120, 255)
-		NoclipLabel.Text = "🚫 Noclip AÇIK"
+		NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
+		NoclipLabel.Text = L("noclipOpen")
 		NoclipLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
 		noclipConnection = RunService.Stepped:Connect(function()
-			local char = Player.Character
+			if getgenv().MM2FarmSession ~= mySession then return end
+			local char = LocalPlayer.Character
 			if char then
 				for _, part in pairs(char:GetDescendants()) do
 					if part:IsA("BasePart") then
@@ -673,19 +854,11 @@ local function setNoclip(enabled)
 		end)
 	else
 		NoclipToggleCircle.BackgroundColor3 = Color3.fromRGB(100, 40, 140)
-		NoclipLabel.Text = "🚫 Noclip"
+		NoclipLabel.Text = L("noclip")
 		NoclipLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		if noclipConnection then
 			noclipConnection:Disconnect()
 			noclipConnection = nil
-		end
-		local char = Player.Character
-		if char then
-			for _, part in pairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = true
-				end
-			end
 		end
 	end
 end
@@ -694,25 +867,64 @@ NoclipToggle.MouseButton1Click:Connect(function()
 	setNoclip(not noclipEnabled)
 end)
 
-Player.CharacterAdded:Connect(function()
-	if noclipEnabled then
-		task.wait(0.5)
-		setNoclip(true)
+-------------------------------------------------------------------
+-- ⏱️ WEBHOOK SAYAÇ GÖSTERGESİ -------------------------------------------------------------------
+local WebhookTimerFrame = Instance.new("Frame", MiscContent)
+WebhookTimerFrame.Size = UDim2.new(0, 260, 0, 28)
+WebhookTimerFrame.Position = UDim2.new(0, 0, 0, 112)
+WebhookTimerFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+WebhookTimerFrame.Transparency = 1
+WebhookTimerFrame.BorderSizePixel = 0
+
+Instance.new("UICorner", WebhookTimerFrame).CornerRadius = UDim.new(1, 0)
+local WebhookTimerStroke = Instance.new("UIStroke", WebhookTimerFrame)
+WebhookTimerStroke.Color = Color3.fromRGB(200, 100, 255)
+WebhookTimerStroke.Thickness = 1.2
+WebhookTimerStroke.Transparency = 1
+
+local WebhookTimerIcon = Instance.new("ImageLabel", WebhookTimerFrame)
+WebhookTimerIcon.BackgroundTransparency = 1
+WebhookTimerIcon.Position = UDim2.new(0, 10, 0.5, -8)
+WebhookTimerIcon.Size = UDim2.new(0, 16, 0, 16)
+WebhookTimerIcon.Image = "rbxassetid://115736032752379"
+
+WebhookTimerLabelRef = Instance.new("TextLabel", WebhookTimerFrame)
+WebhookTimerLabelRef.BackgroundTransparency = 1
+WebhookTimerLabelRef.Position = UDim2.new(0, 38, 0, 0)
+WebhookTimerLabelRef.Size = UDim2.new(0.8, 0, 1, 0)
+WebhookTimerLabelRef.Font = Enum.Font.GothamBold
+WebhookTimerLabelRef.Text = L("webhookTimer") .. "00:00"
+WebhookTimerLabelRef.TextColor3 = Color3.fromRGB(255, 200, 100)
+WebhookTimerLabelRef.TextSize = 11
+WebhookTimerLabelRef.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Webhook Sayaç Döngüsü
+task.spawn(function()
+	while task.wait(1) do
+		if getgenv().MM2FarmSession ~= mySession then break end
+		if WebhookTimerLabelRef then
+			local elapsed = os.time() - lastWebhook
+			local remaining = webhookCooldown - elapsed
+			if remaining < 0 then remaining = 0 end
+			local mins = math.floor(remaining / 60)
+			local secs = remaining % 60
+			WebhookTimerLabelRef.Text = L("webhookTimer") .. string.format("%02d:%02d", mins, secs)
+		end
 	end
 end)
 
 -------------------------------------------------------------------
--- 🌐 WEBHOOK AYAR GİRİŞİ (Misc Sekmesi - Otomatik Tanımlı) -------------------------------------------------------------------
-local WebhookInput = Instance.new("TextBox")
-WebhookInput.Parent = MiscContent
-WebhookInput.Size = UDim2.new(0, 230, 0, 30)
-WebhookInput.Position = UDim2.new(0, 20, 0, 86)
+-- 🌐 WEBHOOK AYAR GİRİŞİ -------------------------------------------------------------------
+local WebhookInput = Instance.new("TextBox", MiscContent)
+WebhookInput.Size = UDim2.new(0, 260, 0, 30)
+WebhookInput.Position = UDim2.new(0, 0, 0, 145)
 WebhookInput.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 WebhookInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-WebhookInput.PlaceholderText = "Discord Webhook Linki"
+WebhookInput.PlaceholderText = L("webhookPlaceholder")
 WebhookInput.Font = Enum.Font.GothamMedium
 WebhookInput.TextSize = 11
 WebhookInput.Text = webhookURL
+WebhookInput.ClipsDescendants = true
 Instance.new("UICorner", WebhookInput).CornerRadius = UDim.new(0, 6)
 
 local WebhookStroke = Instance.new("UIStroke", WebhookInput)
@@ -724,38 +936,11 @@ WebhookInput.FocusLost:Connect(function()
 	webhookURL = WebhookInput.Text
 end)
 
-local WebhookTimerLabel = Instance.new("TextLabel")
-WebhookTimerLabel.Parent = MiscContent
-WebhookTimerLabel.Size = UDim2.new(0, 230, 0, 20)
-WebhookTimerLabel.Position = UDim2.new(0, 20, 0, 120)
-WebhookTimerLabel.BackgroundTransparency = 1
-WebhookTimerLabel.Font = Enum.Font.GothamBold
-WebhookTimerLabel.Text = "Sıradaki Webhook: 150s"
-WebhookTimerLabel.TextColor3 = Color3.fromRGB(200, 150, 255)
-WebhookTimerLabel.TextSize = 12
-WebhookTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Geri Sayım Döngüsü
-task.spawn(function()
-	while task.wait(1) do
-		if webhookURL ~= "" and webhookURL:find("discord.com") then
-			local remaining = webhookCooldown - (os.time() - lastWebhook)
-			if remaining <= 0 then
-				sendEnhancedWebhook()
-				remaining = webhookCooldown
-			end
-			WebhookTimerLabel.Text = "Sıradaki Webhook: " .. remaining .. "s"
-		else
-			WebhookTimerLabel.Text = "Webhook Bağlı Değil"
-		end
-	end
-end)
-
 -------------------------------------------------------------------
--- // Oyuncu Profili ve Canlı İstatistikler (Coin & Süre) -------------------------------------------------------------------
+-- // Oyuncu Profili ve Canlı İstatistikler -------------------------------------------------------------------
 local ProfileContainer = Instance.new("Frame", MainFrame)
-ProfileContainer.Size = UDim2.new(0, 190, 0, 95)
-ProfileContainer.Position = UDim2.new(0.035, 0, 1, -110)
+ProfileContainer.Size = UDim2.new(0, 210, 0, 82)
+ProfileContainer.Position = UDim2.new(0.007, 0, 1, -87)
 ProfileContainer.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 ProfileContainer.BackgroundTransparency = 0.35
 ProfileContainer.BorderSizePixel = 0
@@ -768,63 +953,60 @@ ProfileStroke.Transparency = 0.4
 
 local ProfileIcon = Instance.new("ImageLabel", ProfileContainer)
 ProfileIcon.BackgroundTransparency = 1
-ProfileIcon.Size = UDim2.new(0, 36, 0, 36)
-ProfileIcon.Position = UDim2.new(0.05, 0, 0.08, 0)
-ProfileIcon.Image = "rbxthumb://type=AvatarHeadShot&id="..Player.UserId.."&w=420&h=420"
+ProfileIcon.Size = UDim2.new(0, 48, 0, 48)
+ProfileIcon.Position = UDim2.new(0.70, 0, 0.18, 0)
+ProfileIcon.Image = "https://www.roblox.com/avatar-thumbnail/image?userId="..targetUserId.."&width=420&height=420&format=png"
+Instance.new("UICorner", ProfileIcon).CornerRadius = UDim.new(1, 0)
+
+local ProfileIconStroke = Instance.new("UIStroke", ProfileIcon)
+ProfileIconStroke.Color = Color3.fromRGB(200, 100, 255)
+ProfileIconStroke.Thickness = 1.2
+ProfileIconStroke.Transparency = 0.4
 
 local NameLabel = Instance.new("TextLabel", ProfileContainer)
 NameLabel.BackgroundTransparency = 1
-NameLabel.Position = UDim2.new(0.32, 0, 0.08, 0)
-NameLabel.Size = UDim2.new(0, 120, 0, 18)
+NameLabel.Position = UDim2.new(0.08, 0, 0.15, 0)
+NameLabel.Size = UDim2.new(0, 120, 0, 20)
 NameLabel.Font = Enum.Font.GothamBold
-NameLabel.Text = Player.DisplayName or "Oyuncu"
+NameLabel.Text = targetUserName
 NameLabel.TextColor3 = Color3.fromRGB(255, 150, 255)
-NameLabel.TextSize = 12
+NameLabel.TextSize = 13
 NameLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local SubName = Instance.new("TextLabel", ProfileContainer)
-SubName.BackgroundTransparency = 1
-SubName.Position = UDim2.new(0.32, 0, 0.28, 0)
-SubName.Size = UDim2.new(0, 120, 0, 16)
-SubName.Font = Enum.Font.Gotham
-SubName.Text = "@" .. Player.Name
-SubName.TextColor3 = Color3.fromRGB(200, 120, 255)
-SubName.TextSize = 10
-SubName.TextXAlignment = Enum.TextXAlignment.Left
 
 CoinLabelRef = Instance.new("TextLabel", ProfileContainer)
 CoinLabelRef.BackgroundTransparency = 1
-CoinLabelRef.Position = UDim2.new(0.08, 0, 0.52, 0)
+CoinLabelRef.Position = UDim2.new(0.08, 0, 0.42, 0)
 CoinLabelRef.Size = UDim2.new(0.85, 0, 0, 20)
 CoinLabelRef.Font = Enum.Font.GothamBold
-CoinLabelRef.Text = "Coin: 0"
+CoinLabelRef.Text = L("coin") .. "0"
 CoinLabelRef.TextColor3 = Color3.fromRGB(255, 220, 100)
 CoinLabelRef.TextSize = 12
 CoinLabelRef.TextXAlignment = Enum.TextXAlignment.Left
 
 local TimeLabelRef = Instance.new("TextLabel", ProfileContainer)
 TimeLabelRef.BackgroundTransparency = 1
-TimeLabelRef.Position = UDim2.new(0.08, 0, 0.75, 0)
+TimeLabelRef.Position = UDim2.new(0.08, 0, 0.70, 0)
 TimeLabelRef.Size = UDim2.new(0.85, 0, 0, 20)
 TimeLabelRef.Font = Enum.Font.GothamBold
-TimeLabelRef.Text = "Süre: 00:00:00"
+TimeLabelRef.Text = L("time") .. "00:00:00"
 TimeLabelRef.TextColor3 = Color3.fromRGB(255, 255, 255)
 TimeLabelRef.TextSize = 12
 TimeLabelRef.TextXAlignment = Enum.TextXAlignment.Left
 
--- Süre Güncelleme Döngüsü
+-- Süre Sayaç Döngüsü
 task.spawn(function()
 	while task.wait(1) do
+		if getgenv().MM2FarmSession ~= mySession then break end
 		local diff = os.difftime(os.time(), startTime)
 		local hours = math.floor(diff / 3600)
 		local mins = math.floor((diff % 3600) / 60)
 		local secs = diff % 60
-		TimeLabelRef.Text = string.format("Süre: %02d:%02d:%02d", hours, mins, secs)
+		TimeLabelRef.Text = L("time") .. string.format("%02d:%02d:%02d", hours, mins, secs)
 	end
 end)
 
 -------------------------------------------------------------------
--- // Sürükleme (Taşıma) -------------------------------------------------------------------
+-- // Sadece Üst Başlıktan Sürükleme -------------------------------------------------------------------
 local dragging = false
 local dragStart, startPos
 
@@ -838,7 +1020,7 @@ local function update(input)
 	)
 end
 
-MainFrame.InputBegan:Connect(function(input)
+TopBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragStart = input.Position
@@ -851,27 +1033,30 @@ MainFrame.InputBegan:Connect(function(input)
 	end
 end)
 
-MainFrame.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		update(input)
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
+TopBar.InputChanged:Connect(function(input)
 	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 		update(input)
 	end
 end)
 
 -------------------------------------------------------------------
--- // Pencere Açma / Kapatma Butonu -------------------------------------------------------------------
+-- // ScreenGui ve Açma/Kapatma Tuşu Entegrasyonu -------------------------------------------------------------------
+local CustomScreenGui = Instance.new("ScreenGui")
+CustomScreenGui.Name = "CustomUI"
+CustomScreenGui.IgnoreGuiInset = true 
+CustomScreenGui.ResetOnSpawn = false
+CustomScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local buttonSize = 45
+local horizontalPosition = 360
+
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleButton"
-ToggleButton.Parent = ScreenGui
-ToggleButton.Size = UDim2.new(0, 60, 0, 60)
-ToggleButton.Position = UDim2.new(0.06, 0, 0.12, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 0, 45)
-ToggleButton.BackgroundTransparency = 0.25
+ToggleButton.Parent = CustomScreenGui
+ToggleButton.Size = UDim2.new(0, buttonSize, 0, buttonSize) 
+ToggleButton.Position = UDim2.new(0, horizontalPosition, 0, 13)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.BackgroundTransparency = 0.3
 ToggleButton.Text = ""
 ToggleButton.AutoButtonColor = false
 
@@ -879,50 +1064,65 @@ local ButtonCorner = Instance.new("UICorner", ToggleButton)
 ButtonCorner.CornerRadius = UDim.new(1, 0)
 
 local ButtonStroke = Instance.new("UIStroke", ToggleButton)
-ButtonStroke.Color = Color3.fromRGB(200, 100, 255)
-ButtonStroke.Thickness = 1.3
-ButtonStroke.Transparency = 0.35
+ButtonStroke.Color = Color3.fromRGB(100, 100, 100)
+ButtonStroke.Thickness = 1.5
+ButtonStroke.Transparency = 0.5
 
-local draggingButton = false
-local dragStartButton, startPosButton
+local ToggleIcon = Instance.new("ImageLabel", ToggleButton)
+ToggleIcon.BackgroundTransparency = 1
+ToggleIcon.Size = UDim2.new(0, buttonSize - 16, 0, buttonSize - 16) 
+ToggleIcon.Position = UDim2.new(0.5, -(buttonSize - 16)/2, 0.5, -(buttonSize - 16)/2)
+ToggleIcon.Image = "rbxassetid://131431650384842"
 
-local function updateButton(input)
-	local delta = input.Position - dragStartButton
-	ToggleButton.Position = UDim2.new(
-		startPosButton.X.Scale,
-		startPosButton.X.Offset + delta.X,
-		startPosButton.Y.Scale,
-		startPosButton.Y.Offset + delta.Y
-	)
+local BLabel = Instance.new("TextLabel", ToggleButton)
+BLabel.BackgroundTransparency = 1
+BLabel.Size = UDim2.new(0, 16, 0, 16)
+BLabel.Position = UDim2.new(1, -16, 1, -16)
+BLabel.Font = Enum.Font.GothamBold
+BLabel.Text = "B"
+BLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+BLabel.TextSize = 25
+BLabel.TextXAlignment = Enum.TextXAlignment.Center
+BLabel.TextYAlignment = Enum.TextYAlignment.Center
+BLabel.Visible = UserInputService.KeyboardEnabled 
+
+local isVisible = false
+if MainFrame then
+	MainFrame.Visible = isVisible
 end
 
-ToggleButton.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		draggingButton = true
-		dragStartButton = input.Position
-		startPosButton = ToggleButton.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				draggingButton = false
-			end
-		end)
+-- Yanıp Sönme Efekti
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		if getgenv().MM2FarmSession ~= mySession then break end
+		if isVisible then
+			local t1 = TweenService:Create(ButtonStroke, TweenInfo.new(0.4), {Color = Color3.fromRGB(255, 255, 255), Transparency = 0})
+			t1:Play()
+			t1.Completed:Wait()
+			if getgenv().MM2FarmSession ~= mySession or not isVisible then break end
+			
+			local t2 = TweenService:Create(ButtonStroke, TweenInfo.new(0.4), {Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7})
+			t2:Play()
+			t2.Completed:Wait()
+		else
+			task.wait(0.2)
+		end
 	end
 end)
 
-ToggleButton.InputChanged:Connect(function(input)
-	if draggingButton and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		updateButton(input)
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if draggingButton and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		updateButton(input)
-	end
-end)
-
-local isVisible = true
-ToggleButton.MouseButton1Click:Connect(function()
+local function toggleMenu()
 	isVisible = not isVisible
-	MainFrame.Visible = isVisible
+	if MainFrame then
+		MainFrame.Visible = isVisible
+	end
+end
+
+ToggleButton.MouseButton1Click:Connect(toggleMenu)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.B then
+		toggleMenu()
+	end
 end)
