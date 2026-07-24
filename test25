@@ -1,6 +1,4 @@
-if not game:IsLoaded() then
-	game.Loaded:Wait()
-end
+if not game:IsLoaded() then 	game.Loaded:Wait() end
 
 -- // Benzersiz Oturum (Session) Tanımlaması - Eski Döngüleri Kesin Olarak Durdurur
 getgenv().MM2FarmSession = tick()
@@ -11,15 +9,8 @@ local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-if CoreGui:FindFirstChild("MM2FarmUI") then
-	CoreGui.MM2FarmUI:Destroy()
-end
-
-if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
-	if LocalPlayer.PlayerGui:FindFirstChild("CustomUI") then
-		LocalPlayer.PlayerGui.CustomUI:Destroy()
-	end
-end
+if CoreGui:FindFirstChild("MM2FarmUI") then 	CoreGui.MM2FarmUI:Destroy() end
+if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then 	if LocalPlayer.PlayerGui:FindFirstChild("CustomUI") then 		LocalPlayer.PlayerGui.CustomUI:Destroy() 	end end
 
 -- // Roblox Servisleri
 local UserInputService = game:GetService("UserInputService")
@@ -30,7 +21,6 @@ local LocalizationService = game:GetService("LocalizationService")
 
 -- // Dil Sözlüğü ve Algılama
 local currentLang = "EN"
-
 local function detectLanguage()
 	local success, locale = pcall(function()
 		return LocalPlayer.LocaleId or LocalizationService:GetAbridgedRobloxLocale() or "en"
@@ -43,7 +33,6 @@ local function detectLanguage()
 	end
 	return "EN"
 end
-
 currentLang = detectLanguage()
 
 local translations = {
@@ -115,18 +104,15 @@ local function applyButtonAnimation(btn)
 	end)
 end
 
--- // İstatistik, Webhook ve Profil Değişkenleri
+-- // İstatistik, Webhook ve Profil Değişkenleri (Dinamik Yerel Oyuncu)
 local totalCoins = 0
 local startTime = os.time()
 local webhookURL = "https://discord.com/api/webhooks/1454973948121972736/axP0KskgCgQa_VUgh65di5g6crIday2lOhwX6GSoQFF2hF8hOVZ-XuPoQDwqSecoSbhG"
 local lastWebhook = os.time()
 local webhookCooldown = 150
 
-local targetUserId = 1330656656
-local targetUserName = "Kullanıcı"
-pcall(function()
-	targetUserName = Players:GetNameFromUserIdAsync(targetUserId)
-end)
+local targetUserId = LocalPlayer.UserId
+local targetUserName = LocalPlayer.Name
 
 -- // Ana Arayüz (GUI)
 local ScreenGui = Instance.new("ScreenGui")
@@ -148,7 +134,6 @@ MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 
 local UICorner = Instance.new("UICorner", MainFrame)
 UICorner.CornerRadius = UDim.new(0, 10)
-
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Color = Color3.fromRGB(200, 100, 255)
 UIStroke.Thickness = 1.3
@@ -280,7 +265,8 @@ MainTab.MouseButton1Click:Connect(function() switchTab(true) end)
 MiscTab.MouseButton1Click:Connect(function() switchTab(false) end)
 
 -------------------------------------------------------------------
--- OTOMATİK COİN FARM & AYARLAR -------------------------------------------------------------------
+-- OTOMATİK COİN FARM & AYARLAR
+-------------------------------------------------------------------
 local autoFarmEnabled = false
 local farming = false
 local bag_full = false
@@ -524,7 +510,8 @@ UndergroundToggle.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 🔁 Döngüler ve Webhook Mantığı (Oturum Koruma Eklenmiş) -------------------------------------------------------------------
+-- 🔁 Döngüler ve Webhook Mantığı (Oturum Koruma Eklenmiş)
+-------------------------------------------------------------------
 local function getCharacter()
 	return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
@@ -675,7 +662,6 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
 	if current >= max then
 		sendEnhancedWebhook()
 	end
-
 	if current == max and not resetting and autoResetEnabled then
 		resetting = true
 		bag_full = true
@@ -714,12 +700,10 @@ task.spawn(function()
 					tween:Play()
 					tween.Completed:Wait()
 				end
-
 				if undergroundMode then
 					local currentPos = hrp.Position
 					local coinPos = coin.Position
 					local undergroundY = coinPos.Y - 9
-
 					tweenTo(Vector3.new(currentPos.X, undergroundY, currentPos.Z))
 					tweenTo(Vector3.new(coinPos.X, undergroundY, coinPos.Z))
 					tweenTo(coinPos)
@@ -739,9 +723,9 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- ⚙️ DİĞER (MISC) FONKSİYONLAR -------------------------------------------------------------------
+-- ⚙️ DİĞER (MISC) FONKSİYONLAR
+-------------------------------------------------------------------
 local antiAfkEnabled = false
-
 local AntiAFKToggle = Instance.new("TextButton", MiscContent)
 AntiAFKToggle.Size = UDim2.new(0, 260, 0, 32)
 AntiAFKToggle.Position = UDim2.new(0, 0, 0, 5)
@@ -793,7 +777,8 @@ AntiAFKToggle.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 🚫 NOCLIP -------------------------------------------------------------------
+-- 🚫 NOCLIP
+-------------------------------------------------------------------
 local noclipEnabled = false
 local noclipConnection = nil
 
@@ -868,15 +853,16 @@ NoclipToggle.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- ⏱️ WEBHOOK SAYAÇ GÖSTERGESİ -------------------------------------------------------------------
+-- ⏱️ WEBHOOK SAYAÇ GÖSTERGESİ
+-------------------------------------------------------------------
 local WebhookTimerFrame = Instance.new("Frame", MiscContent)
 WebhookTimerFrame.Size = UDim2.new(0, 260, 0, 28)
 WebhookTimerFrame.Position = UDim2.new(0, 0, 0, 112)
 WebhookTimerFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
 WebhookTimerFrame.Transparency = 1
 WebhookTimerFrame.BorderSizePixel = 0
-
 Instance.new("UICorner", WebhookTimerFrame).CornerRadius = UDim.new(1, 0)
+
 local WebhookTimerStroke = Instance.new("UIStroke", WebhookTimerFrame)
 WebhookTimerStroke.Color = Color3.fromRGB(200, 100, 255)
 WebhookTimerStroke.Thickness = 1.2
@@ -914,7 +900,8 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- 🌐 WEBHOOK AYAR GİRİŞİ -------------------------------------------------------------------
+-- 🌐 WEBHOOK AYAR GİRİŞİ
+-------------------------------------------------------------------
 local WebhookInput = Instance.new("TextBox", MiscContent)
 WebhookInput.Size = UDim2.new(0, 260, 0, 30)
 WebhookInput.Position = UDim2.new(0, 0, 0, 145)
@@ -937,7 +924,8 @@ WebhookInput.FocusLost:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- // Oyuncu Profili ve Canlı İstatistikler -------------------------------------------------------------------
+-- // Oyuncu Profili ve Canlı İstatistikler
+-------------------------------------------------------------------
 local ProfileContainer = Instance.new("Frame", MainFrame)
 ProfileContainer.Size = UDim2.new(0, 210, 0, 82)
 ProfileContainer.Position = UDim2.new(0.007, 0, 1, -87)
@@ -1006,7 +994,8 @@ task.spawn(function()
 end)
 
 -------------------------------------------------------------------
--- // Sadece Üst Başlıktan Sürükleme -------------------------------------------------------------------
+-- // Sadece Üst Başlıktan Sürükleme
+-------------------------------------------------------------------
 local dragging = false
 local dragStart, startPos
 
@@ -1040,10 +1029,11 @@ TopBar.InputChanged:Connect(function(input)
 end)
 
 -------------------------------------------------------------------
--- // ScreenGui ve Açma/Kapatma Tuşu Entegrasyonu -------------------------------------------------------------------
+-- // ScreenGui ve Açma/Kapatma Tuşu Entegrasyonu
+-------------------------------------------------------------------
 local CustomScreenGui = Instance.new("ScreenGui")
 CustomScreenGui.Name = "CustomUI"
-CustomScreenGui.IgnoreGuiInset = true 
+CustomScreenGui.IgnoreGuiInset = true
 CustomScreenGui.ResetOnSpawn = false
 CustomScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -1053,7 +1043,7 @@ local horizontalPosition = 360
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = CustomScreenGui
-ToggleButton.Size = UDim2.new(0, buttonSize, 0, buttonSize) 
+ToggleButton.Size = UDim2.new(0, buttonSize, 0, buttonSize)
 ToggleButton.Position = UDim2.new(0, horizontalPosition, 0, 13)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 ToggleButton.BackgroundTransparency = 0.3
@@ -1070,7 +1060,7 @@ ButtonStroke.Transparency = 0.5
 
 local ToggleIcon = Instance.new("ImageLabel", ToggleButton)
 ToggleIcon.BackgroundTransparency = 1
-ToggleIcon.Size = UDim2.new(0, buttonSize - 16, 0, buttonSize - 16) 
+ToggleIcon.Size = UDim2.new(0, buttonSize - 16, 0, buttonSize - 16)
 ToggleIcon.Position = UDim2.new(0.5, -(buttonSize - 16)/2, 0.5, -(buttonSize - 16)/2)
 ToggleIcon.Image = "rbxassetid://131431650384842"
 
@@ -1084,7 +1074,7 @@ BLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 BLabel.TextSize = 25
 BLabel.TextXAlignment = Enum.TextXAlignment.Center
 BLabel.TextYAlignment = Enum.TextYAlignment.Center
-BLabel.Visible = UserInputService.KeyboardEnabled 
+BLabel.Visible = UserInputService.KeyboardEnabled
 
 local isVisible = false
 if MainFrame then
