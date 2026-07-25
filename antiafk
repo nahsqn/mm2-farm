@@ -1,6 +1,4 @@
--- Westgo Anti-AFK UI (FPS Temalı)
--- Tasarım: Turuncu Neon & Sürüklenebilir
-
+-- // Void Anti-AFK UI -- Tasarım: Mor Neon & Sürüklenebilir
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local VirtualUser = game:GetService("VirtualUser")
@@ -8,8 +6,8 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
 -- // Eski UI temizliği
-if CoreGui:FindFirstChild("WestgoAntiAFK_Theme") then
-    CoreGui.WestgoAntiAFK_Theme:Destroy()
+if CoreGui:FindFirstChild("VoidAntiAFK_Theme") then
+    CoreGui.VoidAntiAFK_Theme:Destroy()
 end
 
 -- // Ayar
@@ -17,24 +15,24 @@ _G.AntiAFKActive = true
 
 -- // UI Oluşturma
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "WestgoAntiAFK_Theme"
+ScreenGui.Name = "VoidAntiAFK_Theme"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local Container = Instance.new("Frame")
 Container.Name = "MainFrame"
 Container.Parent = ScreenGui
-Container.Size = UDim2.new(0, 130, 0, 45) -- FPS Göstergesi ile aynı boyut
-Container.Position = UDim2.new(0, 20, 1, -115) -- FPS göstergesinin tam üstü
+Container.Size = UDim2.new(0, 130, 0, 45)
+Container.Position = UDim2.new(0, 20, 1, -115)
 Container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Container.BackgroundTransparency = 0.3
+Container.BackgroundTransparency = 0.35 -- Şeffaflık ayarı
 Container.Active = true
 
 local Corner = Instance.new("UICorner", Container)
 Corner.CornerRadius = UDim.new(0, 8)
 
 local Stroke = Instance.new("UIStroke", Container)
-Stroke.Color = Color3.fromRGB(255, 120, 0) -- FPS Göstergesi ile aynı Turuncu
+Stroke.Color = Color3.fromRGB(150, 50, 255) -- Mor Kenar (Neon Mor)
 Stroke.Thickness = 1.5
 
 local StatusLabel = Instance.new("TextLabel")
@@ -42,18 +40,17 @@ StatusLabel.Parent = Container
 StatusLabel.Size = UDim2.new(1, 0, 1, 0)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextSize = 13
+StatusLabel.TextSize = 11
 StatusLabel.TextColor3 = Color3.new(1, 1, 1)
-StatusLabel.Text = "Anti-AFK\n[AKTİF]"
+StatusLabel.Text = "Anti-AFK\n[AKTİF] • by void"
 
 -- // Anti-AFK Mantığı
 Player.Idled:Connect(function()
     if _G.AntiAFKActive then
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
-        
         -- Engelleme anında yazı rengi anlık değişir
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+        StatusLabel.TextColor3 = Color3.fromRGB(200, 100, 255)
         task.wait(0.5)
         StatusLabel.TextColor3 = Color3.new(1, 1, 1)
     end
@@ -61,6 +58,7 @@ end)
 
 -- // Gelişmiş Sürükleme Sistemi
 local dragging, dragInput, dragStart, startPos
+
 Container.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
@@ -77,21 +75,23 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
 end)
 
--- // Aç/Kapat (Üzerine tıklayınca)
+-- // Aç/Kapat (Sağ Tık)
 Container.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then -- Sağ Tıkla Kapat/Aç
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
         _G.AntiAFKActive = not _G.AntiAFKActive
         if _G.AntiAFKActive then
-            StatusLabel.Text = "Anti-AFK\n[AKTİF]"
-            Stroke.Color = Color3.fromRGB(255, 120, 0)
+            StatusLabel.Text = "Anti-AFK\n[AKTİF] • by void"
+            Stroke.Color = Color3.fromRGB(150, 50, 255)
         else
-            StatusLabel.Text = "Anti-AFK\n[KAPALI]"
-            Stroke.Color = Color3.fromRGB(100, 100, 100) -- Kapalıyken gri renk
+            StatusLabel.Text = "Anti-AFK\n[KAPALI] • by void"
+            Stroke.Color = Color3.fromRGB(100, 100, 100)
         end
     end
 end)
 
-print("westgo Anti-AFK: FPS Göstergesi temasıyla uyumlu hale getirildi!")
+print("Void Anti-AFK: Mor tema ve by void imzasıyla başarıyla yüklendi!")
