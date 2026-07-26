@@ -27,6 +27,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local LocalizationService = game:GetService("LocalizationService")
+local GuiService = game:GetService("GuiService")
 
 -- // Dil Sözlüğü ve Algılama
 local currentLang = "EN"
@@ -122,11 +123,8 @@ local webhookURL = "https://discord.com/api/webhooks/1454973948121972736/axP0Ksk
 local lastWebhook = os.time()
 local webhookCooldown = 150
 
-local targetUserId = 1330656656
-local targetUserName = "Kullanıcı"
-pcall(function()
-	targetUserName = Players:GetNameFromUserIdAsync(targetUserId)
-end)
+local targetUserId = LocalPlayer.UserId
+local targetUserName = LocalPlayer.Name
 
 -- // Ana Arayüz (GUI)
 local ScreenGui = Instance.new("ScreenGui")
@@ -524,13 +522,17 @@ UndergroundToggle.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 🔁 Döngüler ve Webhook Mantığı (Oturum Koruma Eklenmiş) -------------------------------------------------------------------
+-- 🔁 Döngüler ve Webhook Mantığı -------------------------------------------------------------------
 local function getCharacter()
 	return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
 
 local function getHRP()
-	return getCharacter():WaitForChild("HumanoidRootPart")
+	local char = LocalPlayer.Character
+	if char then
+		return char:FindFirstChild("HumanoidRootPart")
+	end
+	return nil
 end
 
 local collectedCoins = {}
@@ -554,6 +556,7 @@ end
 
 local function get_nearest_coin()
 	local hrp = getHRP()
+	if not hrp then return nil, math.huge end
 	local closest, dist = nil, math.huge
 	for _, m in pairs(workspace:GetChildren()) do
 		if getgenv().MM2FarmSession ~= mySession then return nil, math.huge end
@@ -592,7 +595,7 @@ local function sendEnhancedWebhook()
 			["color"] = 14513407,
 			["thumbnail"] = {["url"] = characterImg},
 			["fields"] = {
-				{["name"] = "👤 Kullanıcı / User", ["value"] = "```" .. targetUserName .. "```", ["inline"] = true},
+				{["name"] = "👤 Oyuncu / Player", ["value"] = "```" .. targetUserName .. "```", ["inline"] = true},
 				{["name"] = "⏳ Süre / Time", ["value"] = "```" .. string.format("%02d:%02d:%02d", h, m, s) .. "```", ["inline"] = true},
 				{["name"] = "🪙 Coin", ["value"] = "```" .. totalCoins .. "```", ["inline"] = true},
 				{["name"] = "📈 Hız / Speed", ["value"] = "```" .. perHour .. " / Saat-Hour```", ["inline"] = true}
@@ -622,17 +625,22 @@ RoundStart.OnClientEvent:Connect(function()
 	if getgenv().MM2FarmSession ~= mySession then return end
 	roundActive = true
 	isDead = false
+	bag_full = false
 	farming = true
 	collectedCoins = {}
-	start_position = getHRP().CFrame
+	local hrp = getHRP()
+	if hrp then
+		start_position = hrp.CFrame
+	end
 end)
 
 RoundEnd.OnClientEvent:Connect(function()
 	if getgenv().MM2FarmSession ~= mySession then return end
 	roundActive = false
 	farming = false
-	if start_position then
-		getHRP().CFrame = start_position
+	local hrp = getHRP()
+	if start_position and hrp then
+		hrp.CFrame = start_position
 	end
 end)
 
@@ -651,12 +659,11 @@ local function checkDeath()
 	end
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
+LocalPlayer.CharacterAdded:Connect(function(newChar)
 	if getgenv().MM2FarmSession ~= mySession then return end
 	isDead = false
-	if roundActive then
-		farming = false
-	end
+	farming = false
+	bag_full = false
 	task.wait(0.5)
 	checkDeath()
 end)
@@ -673,6 +680,8 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
 	end
 	
 	if current >= max then
+		bag_full = true
+		farming = false
 		sendEnhancedWebhook()
 	end
 
@@ -681,58 +690,76 @@ CoinCollected.OnClientEvent:Connect(function(_, current, max)
 		bag_full = true
 		farming = false
 		local hrp = getHRP()
-		if start_position then
-			local tween = TweenService:Create(hrp, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = start_position})
+		if start_position and hrp then
+			local tween = TweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = start_position})
 			tween:Play()
 			tween.Completed:Wait()
 		end
-		task.wait(0.5)
-		LocalPlayer.Character.Humanoid.Health = 0
-		LocalPlayer.CharacterAdded:Wait()
-		task.wait(1.5)
+		task.wait(0.2)
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+			LocalPlayer.Character.Humanoid.Health = 0
+		end
+		task.wait(1)
 		resetting = false
 		bag_full = false
 	end
 end)
 
--- Farm Döngüsü (Eski oturum algılandığında anında durur)
+-- Güvenli Tween Fonksiyonu (Maç Bittiğinde / Paralar Kaybolduğunda Hareketi ve İşlemi Anında İptal Eder)
+local function tweenTo(hrp, targetPos)
+	if getgenv().MM2FarmSession ~= mySession or not hrp or not hrp.Parent or bag_full or not roundActive then return false end
+	local distance = (hrp.Position - targetPos).Magnitude
+	local duration = distance / farmSpeed
+	if duration < 0.03 then duration = 0.03 end
+	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+	local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+	tween:Play()
+	
+	while tween.PlaybackState == Enum.PlaybackState.Playing do
+		if getgenv().MM2FarmSession ~= mySession or not roundActive or not hrp or not hrp.Parent or bag_full then
+			tween:Cancel()
+			return false
+		end
+		task.wait()
+	end
+	return true
+end
+
+-- Farm Döngüsü
 task.spawn(function()
 	while true do
-		task.wait(0.1)
+		task.wait(0.03)
 		if getgenv().MM2FarmSession ~= mySession then break end
 		if autoFarmEnabled and farming and not bag_full and not isDead and roundActive then
-			local coin, dist = get_nearest_coin()
-			if coin then
-				local hrp = getHRP()
-				local function tweenTo(targetPos)
-					if getgenv().MM2FarmSession ~= mySession then return end
-					local distance = (hrp.Position - targetPos).Magnitude
-					local duration = distance / farmSpeed
-					if duration < 0.05 then duration = 0.05 end
-					local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-					local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-					tween:Play()
-					tween.Completed:Wait()
-				end
+			local hrp = getHRP()
+			if hrp and hrp.Parent then
+				local coin, dist = get_nearest_coin()
+				if coin then
+					if undergroundMode then
+						local currentPos = hrp.Position
+						local coinPos = coin.Position
+						local undergroundY = coinPos.Y - 9
 
-				if undergroundMode then
-					local currentPos = hrp.Position
-					local coinPos = coin.Position
-					local undergroundY = coinPos.Y - 9
-
-					tweenTo(Vector3.new(currentPos.X, undergroundY, currentPos.Z))
-					tweenTo(Vector3.new(coinPos.X, undergroundY, coinPos.Z))
-					tweenTo(coinPos)
-					collectedCoins[coin] = tick()
-					task.wait(0.1)
-					tweenTo(Vector3.new(coinPos.X, undergroundY, coinPos.Z))
+						if tweenTo(hrp, Vector3.new(currentPos.X, undergroundY, currentPos.Z)) then
+							if tweenTo(hrp, Vector3.new(coinPos.X, undergroundY, coinPos.Z)) then
+								if tweenTo(hrp, coinPos) then
+									if isCoinValid(coin) and roundActive then
+										collectedCoins[coin] = tick()
+									end
+									tweenTo(hrp, Vector3.new(coinPos.X, undergroundY, coinPos.Z))
+								end
+							end
+						end
+					else
+						if tweenTo(hrp, coin.Position) then
+							if isCoinValid(coin) and roundActive then
+								collectedCoins[coin] = tick()
+							end
+						end
+					end
 				else
-					tweenTo(coin.Position)
-					collectedCoins[coin] = tick()
-					task.wait(0.05)
+					task.wait(0.2)
 				end
-			else
-				task.wait(0.5)
 			end
 		end
 	end
@@ -1004,15 +1031,6 @@ task.spawn(function()
 		TimeLabelRef.Text = L("time") .. string.format("%02d:%02d:%02d", hours, mins, secs)
 	end
 end)
-
--- // Servisler
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local GuiService = game:GetService("GuiService")
-local LocalPlayer = Players.LocalPlayer
-
--- Not: MainFrame, TopBar ve mySession değişkenlerinin projenizde tanımlı olduğunu varsayıyoruz.
 
 -------------------------------------------------------------------
 -- // Sadece Üst Başlıktan Sürükleme -------------------------------------------------------------------
