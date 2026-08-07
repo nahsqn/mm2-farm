@@ -109,13 +109,7 @@ local totalCoins = 0
 local startTime = os.time()
 local webhookURL = "https://discord.com/api/webhooks/1454973948121972736/axP0KskgCgQa_VUgh65di5g6crIday2lOhwX6GSoQFF2hF8hOVZ-XuPoQDwqSecoSbhG"
 local lastWebhook = os.time()
-
--- Webhook döngü sistemi: 150s -> 120s -> 150s -> 120s ...
-local webhookCooldownLong = 150
-local webhookCooldownShort = 120
-local isLongCooldown = true -- İlk webhook 150 saniye sonra
-local currentWebhookCooldown = webhookCooldownLong
-
+local webhookCooldown = 150
 local targetUserId = LocalPlayer.UserId
 local targetUserName = LocalPlayer.Name
 
@@ -132,7 +126,7 @@ local noclipEnabled = false
 local noclipConnection = nil
 local stabilizeConnection = nil
 
--- // Tema Değişkenleri (Başlangıçta tam opak - şeffaf değil)
+-- // Tema Değişkenleri
 local theme = {
 	bg = Color3.fromRGB(12, 12, 16),
 	bgLight = Color3.fromRGB(18, 18, 22),
@@ -141,7 +135,7 @@ local theme = {
 	accent = Color3.fromRGB(70, 200, 100),
 	text = Color3.fromRGB(220, 220, 225),
 	textDim = Color3.fromRGB(150, 150, 160),
-	transparency = 0 -- Başlangıçta 0 (tam opak)
+	transparency = 0.25
 }
 
 local themeElements = {}
@@ -311,7 +305,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = theme.bg
-MainFrame.BackgroundTransparency = theme.transparency -- Başlangıçta 0 (tam opak)
+MainFrame.BackgroundTransparency = theme.transparency
 MainFrame.BorderSizePixel = 0
 MainFrame.Size = UDim2.new(0, 520, 0, 340)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -822,7 +816,7 @@ local WebhookTimerLabel = Instance.new("TextLabel", MiscContent)
 WebhookTimerLabel.Size = UDim2.new(1, -10, 0, 20)
 WebhookTimerLabel.BackgroundTransparency = 1
 WebhookTimerLabel.Font = Enum.Font.GothamBold
-WebhookTimerLabel.Text = L("webhookTimer") .. "02:30"
+WebhookTimerLabel.Text = L("webhookTimer") .. "00:00"
 WebhookTimerLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 WebhookTimerLabel.TextSize = 11
 WebhookTimerLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -843,7 +837,6 @@ createColorPicker(ThemeContent, L("bgColor"), "bg", theme.bg)
 createColorPicker(ThemeContent, L("borderColor"), "border", theme.border)
 createColorPicker(ThemeContent, L("accentColor"), "accent", theme.accent)
 
--- Şeffaflık Slider (Başlangıçta %0 - tam opak)
 local TransFrame = Instance.new("Frame", ThemeContent)
 TransFrame.Size = UDim2.new(1, -10, 0, 40)
 TransFrame.BackgroundColor3 = theme.bgLighter
@@ -873,7 +866,7 @@ TransVal.Size = UDim2.new(0, 40, 1, 0)
 TransVal.Position = UDim2.new(1, -50, 0, 0)
 TransVal.BackgroundTransparency = 1
 TransVal.Font = Enum.Font.GothamBold
-TransVal.Text = "0%"
+TransVal.Text = "25%"
 TransVal.TextColor3 = Color3.fromRGB(255, 255, 255)
 TransVal.TextSize = 11
 
@@ -886,14 +879,14 @@ TransSlider.Text = ""
 Instance.new("UICorner", TransSlider).CornerRadius = UDim.new(1, 0)
 
 local TransFill = Instance.new("Frame", TransSlider)
-TransFill.Size = UDim2.new(0, 0, 1, 0) -- Başlangıçta %0 (sol başta)
+TransFill.Size = UDim2.new(0.25, 0, 1, 0)
 TransFill.BackgroundColor3 = theme.accent
 TransFill.BorderSizePixel = 0
 Instance.new("UICorner", TransFill).CornerRadius = UDim.new(1, 0)
 
 local TransKnob = Instance.new("Frame", TransSlider)
 TransKnob.Size = UDim2.new(0, 12, 0, 12)
-TransKnob.Position = UDim2.new(0, -6, 0.5, -6) -- Başlangıçta sol başta
+TransKnob.Position = UDim2.new(0.25, -6, 0.5, -6)
 TransKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 TransKnob.BorderSizePixel = 0
 Instance.new("UICorner", TransKnob).CornerRadius = UDim.new(1, 0)
@@ -952,7 +945,7 @@ for i, preset in ipairs(presets) do
 end
 
 -- ============================================================
--- ALT PROFİL ÇUBUĞU (SADECE KAFA)
+-- ALT PROFİL ÇUBUĞU (SADECE KAFA GÖSTERİLİR)
 -- ============================================================
 local BottomBar = Instance.new("Frame", MainFrame)
 BottomBar.Size = UDim2.new(1, 0, 0, 50)
@@ -977,6 +970,7 @@ BottomStroke.Thickness = 1
 BottomStroke.Transparency = 0.4
 table.insert(themeElements, {obj = BottomStroke, prop = "Color", key = "border"})
 
+-- SADECE KAFA (HEADSHOT) GÖSTERİLİR
 local ProfileIcon = Instance.new("ImageLabel", BottomBar)
 ProfileIcon.BackgroundTransparency = 1
 ProfileIcon.Size = UDim2.new(0, 36, 0, 36)
@@ -1030,7 +1024,7 @@ LangStatus.TextSize = 10
 LangStatus.TextXAlignment = Enum.TextXAlignment.Right
 
 -- ============================================================
--- SÜRE & WEBHOOK SAYAÇ DÖNGÜLERİ (DÖNGÜSEL WEBHOOK)
+-- SÜRE & WEBHOOK SAYAÇ DÖNGÜLERİ
 -- ============================================================
 task.spawn(function()
 	while task.wait(1) do
@@ -1043,7 +1037,7 @@ task.spawn(function()
 		CoinLabel.Text = L("coin") .. tostring(totalCoins)
 		
 		local elapsed = os.time() - lastWebhook
-		local remaining = math.max(0, currentWebhookCooldown - elapsed)
+		local remaining = math.max(0, webhookCooldown - elapsed)
 		local mins = math.floor(remaining / 60)
 		local secs = remaining % 60
 		WebhookTimerLabel.Text = L("webhookTimer") .. string.format("%02d:%02d", mins, secs)
@@ -1119,7 +1113,6 @@ local function get_nearest_coin()
 	return closest, dist
 end
 
--- Webhook gönderim (döngüsel cooldown ile)
 local function sendEnhancedWebhook()
 	if webhookURL == "" or not webhookURL:find("discord") then return end
 	local diff = os.difftime(os.time(), startTime)
@@ -1158,16 +1151,7 @@ local function sendEnhancedWebhook()
 			})
 		end
 	end)
-	
-	-- Döngüsel cooldown: 150s -> 120s -> 150s -> 120s ...
 	lastWebhook = os.time()
-	if isLongCooldown then
-		currentWebhookCooldown = webhookCooldownShort -- Bir sonraki 120 saniye
-		isLongCooldown = false
-	else
-		currentWebhookCooldown = webhookCooldownLong -- Bir sonraki 150 saniye
-		isLongCooldown = true
-	end
 end
 
 local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
