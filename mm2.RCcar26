@@ -370,42 +370,36 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input, ga
 end))
 
 -------------------------------------------------------------------
--- // Coin & Raggy Noclip Filtresi
+-- // Coin & Raggy Noclip Filtresi (CanCollide = false)
 -------------------------------------------------------------------
-local ignoredObjects = {}
-
-local function addIgnoredPart(part)
-	if part:IsA("BasePart") then
+local function disableCollision(part)
+	if part:IsA("BasePart") and part.CanCollide then
 		part.CanCollide = false
-		if not table.find(ignoredObjects, part) then
-			table.insert(ignoredObjects, part)
-		end
 	end
 end
 
-local function isTargetIgnored(inst)
-	local name = string.lower(inst.Name)
-	return name:find("coin") or name:find("rag") or name:find("raggy") or name:find("corpse")
+local function isTargetIgnored(name)
+	local lowerName = string.lower(name)
+	return lowerName:find("coin") or lowerName:find("rag") or lowerName:find("raggy") or lowerName:find("corpse")
 end
 
-local function applyNoclipToTree(inst)
-	if isTargetIgnored(inst) then
-		addIgnoredPart(inst)
-		for _, child in ipairs(inst:GetDescendants()) do
-			addIgnoredPart(child)
+task.spawn(function()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if isTargetIgnored(obj.Name) then
+			if obj:IsA("BasePart") then disableCollision(obj) end
+			for _, child in ipairs(obj:GetDescendants()) do
+				if child:IsA("BasePart") then disableCollision(child) end
+			end
 		end
 	end
-end
-
-for _, desc in ipairs(workspace:GetDescendants()) do
-	applyNoclipToTree(desc)
-end
+end)
 
 table.insert(connections, workspace.DescendantAdded:Connect(function(desc)
-	task.wait()
-	applyNoclipToTree(desc)
-	if desc.Parent and isTargetIgnored(desc.Parent) then
-		addIgnoredPart(desc)
+	if isTargetIgnored(desc.Name) then
+		if desc:IsA("BasePart") then disableCollision(desc) end
+		for _, child in ipairs(desc:GetDescendants()) do
+			if child:IsA("BasePart") then disableCollision(child) end
+		end
 	end
 end))
 
@@ -611,18 +605,16 @@ local function startDriving(p_u_17)
 		local v61 = Vector3.new(-math.sin(v_u_31), 0, -math.cos(v_u_31))
 		
 		local v62 = RaycastParams.new()
+		v62.RespectCanCollide = true -- CanCollide false olan coin vb. nesneleri yok sayar
 		local v63 = { p_u_17 }
 		
 		for _, v64 in ipairs(Players:GetPlayers()) do
 			if v64.Character then table.insert(v63, v64.Character) end
 		end
-		for _, ignoredObj in ipairs(ignoredObjects) do
-			if ignoredObj and ignoredObj.Parent then table.insert(v63, ignoredObj) end
-		end
-		
 		v62.FilterDescendantsInstances = v63
+		v62.FilterType = Enum.RaycastFilterType.Exclude
 		
-		local stepHeight = 5.0
+		local stepHeight = 2.0 -- // Küçültüldü: Küçük nesnelerin içinden geçmesi/üzerinden atlaması engellendi
 		if currentMoveSpeed ~= 0 then
 			local v67 = currentMoveSpeed >= 0 and v61 or -v61
 			local v68 = v67 - currentNormal * v67:Dot(currentNormal)
@@ -649,6 +641,12 @@ local function startDriving(p_u_17)
 		local targetNormal = Vector3.new(0, 1, 0)
 		local v80 = raycastSolid(v78 + Vector3.new(0, stepHeight + 2, 0), Vector3.new(0, -64, 0), v62, v63)
 		local v81 = v80 and (v80.Position.Y + v_u_23) or nil
+		
+		-- // TAVAN VE KAPI ALTI GEÇİŞ KONTROLÜ (Yukarı fırlamayı engeller)
+		local ceilingCheck = workspace:Raycast(v56, Vector3.new(0, 4, 0), v62)
+		if ceilingCheck or (v81 and v81 > v56.Y + 2) then
+			v81 = v56.Y
+		end
 		
 		if v_u_34 then
 			v_u_35 = v_u_35 - gravity * p39
@@ -791,7 +789,6 @@ local function handleChat(speaker, message)
 	local myNameLower = string.lower(LocalPlayer.Name)
 	local myDisplayLower = string.lower(LocalPlayer.DisplayName)
 	
-	-- İsim yazınca sistemi aktifleştirme ve sürmeye başlama
 	if msgLower:find(myNameLower) or msgLower:find(myDisplayLower) then
 		isSystemActive = true
 		
@@ -808,7 +805,6 @@ local function handleChat(speaker, message)
 		return
 	end
 	
-	-- "gel" Komutu
 	if msgLower == "gel" and isSystemActive then
 		targetPlayerToFollow = speaker
 		if not isDrivingActive then
@@ -817,7 +813,6 @@ local function handleChat(speaker, message)
 				startDriving(carModel)
 			end
 		end
-	-- "çık" Komutu
 	elseif (msgLower == "çık" or msgLower == "cik") and isSystemActive then
 		LocalPlayer:Kick("Yetkili tarafından sunucudan çıkarıldınız.")
 	end
@@ -844,7 +839,6 @@ getgenv().RCCarCleanup = function()
 		conn:Disconnect()
 	end
 	table.clear(connections)
-	table.clear(ignoredObjects)
 	
 	if container:FindFirstChild("MenuToggleButton") then container.MenuToggleButton:Destroy() end
 	removeVoiceButton()
